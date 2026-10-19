@@ -1,0 +1,87 @@
+# Guardian — discreet personal safety app
+
+A mobile-first **PWA** (installable on iOS + Android, no app store needed) built for
+in-person providers who need a bodyguard in their pocket.
+
+> A PWA was chosen deliberately: app stores routinely reject adult-industry apps.
+> This installs from the browser to the home screen and updates instantly.
+
+## What it does
+
+- **Panic button** (press-and-hold) — siren, encrypted alert + live GPS to your
+  safety circle, SMS via Twilio relay, optional live camera/mic broadcast
+- **Mandatory check-in / check-out** — start a date timer; miss check-out and your
+  circle is alerted automatically after a grace period you set
+- **Live GPS tracking** — dark map, your position published every ~10s while a date is live
+- **Client GPS + arrival alerts** — send the client a discreet link; they share
+  location from their browser, you get "approaching" / "arrived" pings (geofenced)
+- **Emergency video/audio monitoring** — on panic, your circle can watch a live
+  WebRTC stream from your phone (P2P, signaled over the encrypted session channel)
+- **App siren alarm** — Web Audio siren, no files needed
+- **Duress PIN** — unlocks normally but *silently* alerts your circle
+- **Discreet mode** — neutral wording everywhere ("appointment", "guest"); nothing
+  on screen outs what you do
+- **Crypto + card payments** — BTCPay Server invoices (self-hosted, no KYC) and/or
+  a Stripe payment link, right from the date screen
+- **End-to-end encrypted sync** — every location/alert/signal payload is AES-GCM
+  encrypted with a per-session key that only ever travels inside URL fragments
+  (`#…`), which browsers never send to any server
+
+## How the sync works (no backend of ours)
+
+1. Provider taps **Start date** → app generates a random session ID + 256-bit key.
+2. Positions/alerts are AES-GCM encrypted and published to a public MQTT broker
+   (`wss://broker.emqx.io:8084/mqtt`, configurable) on `guardian/v1/<sessionId>/*`.
+3. The client link (`#/client/<id>?k=<key>`) and circle watch link
+   (`#/watch/<id>?k=<key>`) carry the key **in the URL fragment** — the broker
+   only ever sees ciphertext on random topics.
+4. SMS alerts go through your own Twilio account via the included Cloudflare
+   Worker relay (`worker/sms-relay.js`) — the app never touches Twilio directly
+   (Twilio has no browser CORS support).
+
+**Threat-model notes (read these):**
+- The public broker sees *that* random topics have traffic, not *what* it is.
+  For stronger metadata privacy, run your own MQTT broker (Mosquitto: 5-minute
+  setup) and point the app at it in Settings.
+- WebRTC uses public Google STUN; add your own TURN server in the code
+  (`src/lib/webrtc.ts`) for symmetric-NAT networks.
+- PINs are SHA-256 hashed in `localStorage` — this stops casual snooping, not
+  forensics. Use a device passcode too.
+
+## Quick start
+
+```bash
+npm install
+npm run dev      # → http://localhost:5174
+npm run build    # → dist/
+```
+
+Deploy `dist/` to Cloudflare Pages / Netlify / any static host (HTTPS required
+for geolocation + camera).
+
+## Wiring up the real services (all optional — the app works in demo mode)
+
+| Feature | Setup |
+|---|---|
+| SMS alerts | Deploy `worker/sms-relay.js` to Cloudflare, set the 4 secrets (see file header), paste the worker URL in Settings |
+| Crypto payments | Self-host BTCPay Server (or use a hosted instance), create an API key + store, paste URL/key/store ID in Settings |
+| Card payments | Create a **Payment Link** in your Stripe dashboard, paste it in Settings |
+| Private sync | Run Mosquitto with websockets enabled, set `wss://your-host:8084/mqtt` in Settings |
+
+## Project layout
+
+```
+src/
+  lib/        crypto.ts · sync.ts (MQTT) · webrtc.ts · audio.ts (siren)
+              geo.ts · sms.ts · payments.ts · emergency.ts · store.ts · labels.ts
+  components/ PanicButton.tsx · MapView.tsx (Leaflet, dark tiles) · ui.tsx
+  screens/    LockScreen · HomeScreen · CircleScreen · DateSetupScreen
+              SessionScreen · ClientScreen · WatchScreen · PaymentsScreen
+              SettingsScreen
+  App.tsx     hash router + lock gate + SOS wiring
+worker/       sms-relay.js — Cloudflare Worker for Twilio
+```
+
+## License
+
+Private project. All rights reserved.
