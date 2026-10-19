@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+html, body {
+  background: #0a0a0f;
+  color: #f4f4f5;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* Leaflet dark tweaks */
+.leaflet-container {
+  background: #0a0a0f;
+  font-family: inherit;
+}
+.leaflet-control-attribution {
+  background: rgba(10, 10, 15, 0.7) !important;
+  color: #52525b !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a {
+  color: #71717a !important;
+}
+.leaflet-bar a {
+  background: #18181b !important;
+  color: #d4d4d8 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Prevent pull-to-refresh interfering with the panic hold */
+button {
+  touch-action: manipulation;
+}
