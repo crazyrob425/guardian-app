@@ -86,11 +86,25 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
   };
 
   const setPinHash = async (kind: "pinHash" | "duressPinHash", v: string) => {
-    if (!v) { set(kind, ""); return; }
+    // PINs persist IMMEDIATELY — the panic lock reads the stored settings,
+    // so a PIN that only lives in this form's state until "Save settings"
+    // would silently leave the alarm unlockable. Never again.
+    if (!v) {
+      const next = { ...s, [kind]: "" };
+      setS(next);
+      store.saveSettings(next);
+      props.onChanged();
+      setSaved(kind === "pinHash" ? "Lock PIN removed — panic lock disarmed." : "Duress PIN removed.");
+      setTimeout(() => setSaved(""), 2500);
+      return;
+    }
     if (v.length < 4) { setSaved("PIN must be 4+ digits."); setTimeout(() => setSaved(""), 2000); return; }
-    set(kind, await sha256Hex(v));
-    setSaved(kind === "pinHash" ? "Lock PIN set." : "Duress PIN set.");
-    setTimeout(() => setSaved(""), 2000);
+    const next = { ...s, [kind]: await sha256Hex(v) };
+    setS(next);
+    store.saveSettings(next);
+    props.onChanged();
+    setSaved(kind === "pinHash" ? "Lock PIN set & saved — panic lock armed." : "Duress PIN set & saved.");
+    setTimeout(() => setSaved(""), 2500);
   };
 
   const testSms = async () => {
