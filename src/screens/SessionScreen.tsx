@@ -9,6 +9,9 @@ import { connectSession, clientLink, watchLink, type SyncHandle, type AlertMsg, 
 import { watchPosition, distanceM, formatDist, mapsLink, type LatLng } from "../lib/geo";
 import { startSiren, stopSiren, playChime, buzz } from "../lib/audio";
 import { alertCircle } from "../lib/sms";
+import { sendEmergencyPush } from "../lib/notify";
+import { shareLink, type SharePayload } from "../lib/share";
+import ShareSheet from "../components/ShareSheet";
 import { startBroadcast, type BroadcastHandle } from "../lib/webrtc";
 
 interface FeedItem { ts: number; text: string; tone: "info" | "warn" | "danger" }
@@ -28,6 +31,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const [escalated, setEscalated] = useState(false);
   const [panicOn, setPanicOn] = useState(false);
   const [copied, setCopied] = useState("");
+  const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
   const [syncErr, setSyncErr] = useState("");
 
   const syncRef = useRef<SyncHandle | null>(null);
@@ -146,6 +150,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
       `Guardian ALERT (missed check-in): ${settings.displayName || "Someone you protect"} didn't check out.` +
       (pos ? ` Last location: ${mapsLink(pos)}` : "") + ` Live view: ${link}`
     ).catch(() => {});
+    await sendEmergencyPush(settings, "MISSED CHECK-OUT — they did not check out when expected").catch(() => {});
   };
 
   const doCheckOut = async () => {
@@ -177,6 +182,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
       `Guardian ALERT (PANIC BUTTON): ${settings.displayName || "Someone you protect"} needs help NOW.` +
       (pos ? ` Live location: ${mapsLink(pos)}` : "") + ` Watch: ${link}`
     ).catch(() => {});
+    sendEmergencyPush(settings, "PANIC BUTTON pressed — they need help NOW").catch(() => {});
     // Offer live camera/mic to the circle (best-effort)
     if (sync) {
       try {
@@ -211,6 +217,30 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     }
     setCopied(what);
     setTimeout(() => setCopied(""), 2500);
+  };
+
+  const doShare = async (p: SharePayload) => {
+    const r = await shareLink(p);
+    if (r === "fallback") setSharePayload(p);
+    else if (r === "shared") pushFeed("Link shared.");
+  };
+
+  const shareClient = () => {
+    const s = sessionRef.current!;
+    doShare({
+      title: "Guardian — your check-in link",
+      text: `Hi! For both our safety, please open this link when you head over and share your location — it lets me know when you've arrived:`,
+      url: clientLink(window.location.origin, s.id, s.keyB64),
+    });
+  };
+
+  const shareWatch = () => {
+    const s = sessionRef.current!;
+    doShare({
+      title: "Guardian — watch over me",
+      text: `You're my safety person for this ${L.date.toLowerCase()}. This private link shows my live location — please keep it open and don't forward it:`,
+      url: watchLink(window.location.origin, s.id, s.keyB64),
+    });
   };
 
   const textCircle = async () => {
@@ -272,13 +302,16 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
         </div>
 
         <div className="grid grid-cols-2 gap-3">
+          <Btn onClick={shareClient}>📤 Share {L.client} link</Btn>
+          <Btn onClick={shareWatch}>📤 Share circle link</Btn>
           <Btn onClick={() => copy(clientLink(window.location.origin, session.id, session.keyB64), "client")}>
             {copied === "client" ? "Copied!" : `Copy ${L.client} link`}
           </Btn>
-          <Btn onClick={textCircle}>{copied === "watch" ? "Copied!" : "Text circle link"}</Btn>
+          <Btn onClick={textCircle}>{copied === "watch" ? "Copied!" : "Text circle (SMS)"}</Btn>
           <Btn onClick={() => props.go("#/payments")}>Request payment</Btn>
           <Btn variant="primary" onClick={doCheckOut}>Check out</Btn>
         </div>
+        <p className="text-center text-xs text-zinc-600">Share opens your phone's share menu — text it, Messenger it, WhatsApp it, email it. Your apps, your accounts, no sign-ups.</p>
 
         {feed.length > 0 && (
           <Card>
@@ -292,6 +325,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
             </ul>
           </Card>
         )}
+        {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
       </div>
     </div>
   );

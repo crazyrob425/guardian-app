@@ -36,6 +36,10 @@ export async function alertCircle(
 ): Promise<{ name: string; phone: string; result: SmsResult | { ok: false; demo: false; detail: string } }[]> {
   const out: { name: string; phone: string; result: SmsResult | { ok: false; demo: false; detail: string } }[] = [];
   for (const m of members) {
+    if (!m.phone?.trim()) {
+      out.push({ name: m.name, phone: m.phone, result: { ok: true, demo: true, detail: "No phone on file — reached via push / shared watch link instead." } });
+      continue;
+    }
     try {
       const result = await sendSms(s, m.phone, body);
       out.push({ name: m.name, phone: m.phone, result });

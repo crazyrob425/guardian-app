@@ -15,6 +15,8 @@ export interface Settings {
   mqttBroker: string; // wss:// URL
   twilioWorkerUrl: string; // Cloudflare Worker relay (see worker/sms-relay.js); "" = demo mode
   twilioFrom: string;
+  ntfyServer: string; // free push alerts via ntfy; default public server
+  ntfyTopic: string; // random unguessable topic her circle subscribes to; "" = push off
   btcpayUrl: string; // e.g. https://pay.example.com
   btcpayApiKey: string;
   btcpayStoreId: string;
@@ -48,6 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
   mqttBroker: "wss://broker.emqx.io:8084/mqtt",
   twilioWorkerUrl: "",
   twilioFrom: "",
+  ntfyServer: "https://ntfy.sh",
+  ntfyTopic: "",
   btcpayUrl: "",
   btcpayApiKey: "",
   btcpayStoreId: "",

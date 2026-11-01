@@ -37,6 +37,17 @@ in-person providers who need a bodyguard in their pocket.
   on screen outs what you do
 - **Crypto + card payments** — BTCPay Server invoices (self-hosted, no KYC) and/or
   a Stripe payment link, right from the date screen
+- **Phone share menu** — watch/client links and the circle invite go out through the
+  phone's native share sheet (Web Share API): her own SMS app, Messenger, WhatsApp,
+  Telegram, email. Fallback sheet with the same targets where share isn't supported.
+  Nobody signs up for anything; her apps carry the links.
+- **Free push alerts (ntfy)** — panic / duress / missed check-out also POST a
+  content-free ping to her random private ntfy topic; her circle subscribes once in
+  the free ntfy app (no account, no cost) and gets buzzed even with the watch page
+  closed. Free public tier: ~250 messages/day anonymous — orders of magnitude more
+  than emergency use. Location/links never touch ntfy.
+- **Watch-page escalation** — an open watch page self-escalates on emergency alerts:
+  repeating chime, vibration, system Notification, screen wake lock.
 - **End-to-end encrypted sync** — every location/alert/signal payload is AES-GCM
   encrypted with a per-session key that only ever travels inside URL fragments
   (`#…`), which browsers never send to any server
@@ -49,9 +60,10 @@ in-person providers who need a bodyguard in their pocket.
 3. The client link (`#/client/<id>?k=<key>`) and circle watch link
    (`#/watch/<id>?k=<key>`) carry the key **in the URL fragment** — the broker
    only ever sees ciphertext on random topics.
-4. SMS alerts go through your own Twilio account via the included Cloudflare
-   Worker relay (`worker/sms-relay.js`) — the app never touches Twilio directly
-   (Twilio has no browser CORS support).
+4. SMS alerts (optional fourth layer) go through your own Twilio account via the
+   included Cloudflare Worker relay (`worker/sms-relay.js`) — the app never
+   touches Twilio directly (Twilio has no browser CORS support). The primary
+   alert paths are the share menu (her own apps) and free ntfy push.
 
 **Threat-model notes (read these):**
 - The public broker sees *that* random topics have traffic, not *what* it is.
@@ -77,7 +89,8 @@ for geolocation + camera).
 
 | Feature | Setup |
 |---|---|
-| SMS alerts | Deploy `worker/sms-relay.js` to Cloudflare, set the 4 secrets (see file header), paste the worker URL in Settings |
+| Free push alerts | Settings → generate an ntfy topic → share the circle invite. Circle subscribes once in the free ntfy app / at ntfy.sh/<topic>. No account. |
+| SMS alerts (optional) | Deploy `worker/sms-relay.js` to Cloudflare, set the 4 secrets (see file header), paste the worker URL in Settings. NOT required — share menu + ntfy push cover alerting for free. |
 | Crypto payments | Self-host BTCPay Server (or use a hosted instance), create an API key + store, paste URL/key/store ID in Settings |
 | Card payments | Create a **Payment Link** in your Stripe dashboard, paste it in Settings |
 | Private sync | Run Mosquitto with websockets enabled, set `wss://your-host:8084/mqtt` in Settings |

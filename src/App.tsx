@@ -14,6 +14,8 @@ import { getCurrentPosition } from "./lib/geo";
 import { startSiren, stopSiren } from "./lib/audio";
 import { sendEmergencyAlert } from "./lib/emergency";
 import { watchLink } from "./lib/sync";
+import { shareLink, type SharePayload } from "./lib/share";
+import ShareSheet from "./components/ShareSheet";
 
 type Route =
   | { name: "home" } | { name: "date" } | { name: "session" }
@@ -49,6 +51,7 @@ export default function App() {
   const [session, setSession] = useState<ActiveSession | null>(store.getSession());
   const [unlocked, setUnlocked] = useState(false);
   const [sos, setSos] = useState<{ watchUrl: string; count: number } | null>(null);
+  const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
 
   useEffect(() => {
     const onHash = () => {
@@ -147,9 +150,11 @@ export default function App() {
           <div className="mt-2 flex justify-center gap-2">
             <button onClick={() => { stopSiren(); setSos(null); }} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-zinc-200">Stop siren / dismiss</button>
             {sos.watchUrl && <button onClick={() => { navigator.clipboard?.writeText(sos.watchUrl).catch(() => {}); }} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-zinc-200">Copy live link</button>}
+            {sos.watchUrl && <button onClick={async () => { const p = { title: "Guardian SOS — watch over me", text: "SOS — I need help. This private link shows my live location, please open it now and don't forward it:", url: sos.watchUrl }; const r = await shareLink(p); if (r === "fallback") setSharePayload(p); }} className="rounded-lg bg-red-500/30 px-4 py-2 text-sm font-semibold text-red-100">📤 Share live link</button>}
           </div>
         </div>
       )}
+      {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
       {screen}
     </div>
   );

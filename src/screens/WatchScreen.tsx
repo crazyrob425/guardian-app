@@ -3,7 +3,7 @@ import { TopBar, Card, Btn } from "../components/ui";
 import MapView, { type MapMarker } from "../components/MapView";
 import { importKey } from "../lib/crypto";
 import { connectSession, type SyncHandle, type AlertMsg, type PosMsg, type StateMsg } from "../lib/sync";
-import { playChime } from "../lib/audio";
+import { playChime, buzz } from "../lib/audio";
 import { joinBroadcast } from "../lib/webrtc";
 import { store } from "../lib/store";
 import type { LatLng } from "../lib/geo";
@@ -15,10 +15,43 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
   const [state, setState] = useState<StateMsg | null>(null);
   const [alerts, setAlerts] = useState<AlertMsg[]>([]);
   const [watching, setWatching] = useState(false);
+  const [alertsOn, setAlertsOn] = useState(false);
   const [err, setErr] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const stopWatch = useRef<(() => void) | null>(null);
   const syncRef = useRef<SyncHandle | null>(null);
+  const wakeLock = useRef<{ release: () => void } | null>(null);
+
+  /** Loud local escalation: sound loop + vibration + system notification + wake lock. */
+  const escalateLocal = (m: AlertMsg) => {
+    playChime();
+    setTimeout(playChime, 700);
+    setTimeout(playChime, 1400);
+    buzz([600, 200, 600, 200, 600]);
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("🆘 Guardian EMERGENCY", {
+          body: `${m.type} signal received. Open the live view and check on them now.`,
+          tag: "guardian-emergency",
+          requireInteraction: true,
+        } as NotificationOptions);
+      }
+    } catch { /* noop */ }
+  };
+
+  const enableAlerts = async () => {
+    try {
+      if ("Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+    } catch { /* noop */ }
+    try {
+      const nav = navigator as Navigator & { wakeLock?: { request: (t: string) => Promise<{ release: () => void }> } };
+      if (nav.wakeLock) wakeLock.current = await nav.wakeLock.request("screen");
+    } catch { /* noop */ }
+    playChime();
+    setAlertsOn(true);
+  };
 
   useEffect(() => {
     let dead = false;
@@ -35,13 +68,13 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
         sync.onState((m) => setState(m));
         sync.onAlert((m) => {
           setAlerts((a) => [m, ...a].slice(0, 20));
-          if (m.type === "panic" || m.type === "duress" || m.type === "missed-checkout") playChime();
+          if (m.type === "panic" || m.type === "duress" || m.type === "missed-checkout") escalateLocal(m);
         });
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Connection failed");
       }
     })();
-    return () => { dead = true; stopWatch.current?.(); syncRef.current?.close(); };
+    return () => { dead = true; stopWatch.current?.(); syncRef.current?.close(); try { wakeLock.current?.release(); } catch { /* noop */ } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -78,6 +111,13 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
       <TopBar title="Guardian — live view" />
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
         {err && <Card className="border-red-500/40"><p className="text-sm text-red-300">{err}</p></Card>}
+        {!alertsOn && (
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <p className="mb-2 text-sm text-amber-100">Watching over someone? Turn on loud alerts so an emergency on this page can't be missed — repeating chime, vibration, a system notification, and your screen stays awake.</p>
+            <Btn variant="primary" onClick={enableAlerts}>🔔 Enable loud alerts on this device</Btn>
+          </Card>
+        )}
+        {alertsOn && <p className="text-center text-xs text-emerald-300">🔔 Loud alerts ON — keep this page open.</p>}
         {emergency && (
           <Card className="border-red-500/50 bg-red-500/10">
             <p className="text-center text-lg font-black uppercase tracking-widest text-red-400">Emergency signal active</p>

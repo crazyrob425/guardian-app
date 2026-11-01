@@ -3,6 +3,9 @@ import { TopBar, Card, Btn, Field, inputCls } from "../components/ui";
 import { store, DEFAULT_SETTINGS, type Settings } from "../lib/store";
 import { sha256Hex } from "../lib/crypto";
 import { sendSms } from "../lib/sms";
+import { genTopic, sendPush, circleInviteText, ntfyConfigured } from "../lib/notify";
+import { shareLink, type SharePayload } from "../lib/share";
+import ShareSheet from "../components/ShareSheet";
 
 export default function SettingsScreen(props: { onBack: () => void; onChanged: () => void }) {
   const [s, setS] = useState<Settings>(store.getSettings());
@@ -10,6 +13,8 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
   const [duress, setDuress] = useState("");
   const [saved, setSaved] = useState("");
   const [smsTest, setSmsTest] = useState("");
+  const [pushTest, setPushTest] = useState("");
+  const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS((p) => ({ ...p, [k]: v }));
 
@@ -36,6 +41,25 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
     } catch (e) {
       setSmsTest(e instanceof Error ? e.message : "Failed");
     }
+  };
+
+  const testPush = async () => {
+    store.saveSettings(s);
+    setPushTest("Sending…");
+    const ok = await sendPush(s, { title: "Guardian test", body: "Your free push alerts work. This is what an emergency ping looks like (real ones say GUARDIAN ALERT).", priority: 4, tags: "white_check_mark" });
+    setPushTest(ok ? "Test ping sent — check the device that's subscribed to your topic." : "Set a topic first.");
+    setTimeout(() => setPushTest(""), 5000);
+  };
+
+  const shareInvite = async () => {
+    store.saveSettings(s);
+    const p: SharePayload = {
+      title: "Join my Guardian safety circle",
+      text: circleInviteText(s),
+      url: (s.ntfyServer || "https://ntfy.sh").replace(/\/$/, "") + "/" + s.ntfyTopic.trim(),
+    };
+    const r = await shareLink(p);
+    if (r === "fallback") setSharePayload(p);
   };
 
   const wipe = () => {
@@ -98,7 +122,30 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
         </Card>
 
         <Card className="space-y-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">SMS alerts (Twilio via worker)</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Free push alerts (ntfy — no Twilio, no account)</p>
+          <p className="text-sm text-zinc-400">
+            The free way to buzz your circle's phones even when the watch page is closed. Generate a private topic once,
+            share the subscribe invite, and panic / duress / missed check-out events push an instant alert to everyone
+            subscribed. The ping itself is content-free — no location, no links — your live details stay in the encrypted watch link.
+          </p>
+          <Field label="Your private alert topic" hint="Unguessable = private. Anyone who knows the topic can subscribe or post, so treat it like a password.">
+            <div className="flex gap-2">
+              <input className={inputCls} value={s.ntfyTopic} onChange={(e) => set("ntfyTopic", e.target.value)} placeholder="Tap Generate" />
+              <button onClick={() => set("ntfyTopic", genTopic())} className="shrink-0 rounded-xl bg-white/10 px-4 text-sm text-zinc-200">Generate</button>
+            </div>
+          </Field>
+          <Field label="ntfy server" hint="Public free server by default. Self-hosters can use their own.">
+            <input className={inputCls} value={s.ntfyServer} onChange={(e) => set("ntfyServer", e.target.value)} placeholder="https://ntfy.sh" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Btn onClick={testPush}>{pushTest || "Send test ping"}</Btn>
+            <Btn variant="emerald" onClick={shareInvite} disabled={!ntfyConfigured(s)}>📤 Share circle invite</Btn>
+          </div>
+          {!ntfyConfigured(s) && <p className="text-xs text-zinc-500">Generate a topic to enable push alerts + the invite.</p>}
+        </Card>
+
+        <Card className="space-y-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">SMS alerts (optional — Twilio via worker)</p>
           <Field label="Worker relay URL" hint="Deploy worker/sms-relay.js to Cloudflare, paste its URL. Empty = demo mode.">
             <input className={inputCls} value={s.twilioWorkerUrl} onChange={(e) => set("twilioWorkerUrl", e.target.value)} placeholder="https://guardian-sms.you.workers.dev" />
           </Field>
@@ -131,6 +178,7 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
         <Btn variant="ghost" onClick={() => { setS(DEFAULT_SETTINGS); setSaved("Defaults restored — tap Save."); }}>Restore defaults</Btn>
         <button onClick={wipe} className="w-full py-3 text-center text-sm text-red-400/80">Delete all Guardian data on this device</button>
         <div className="h-6" />
+        {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
       </div>
     </div>
   );

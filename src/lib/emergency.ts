@@ -5,6 +5,7 @@
 import { importKey } from "./crypto";
 import { connectSession, watchLink, type AlertType } from "./sync";
 import { alertCircle } from "./sms";
+import { sendEmergencyPush } from "./notify";
 import { mapsLink, type LatLng } from "./geo";
 import type { Settings, CircleMember } from "./store";
 
@@ -39,5 +40,6 @@ export async function sendEmergencyAlert(opts: {
     (pos ? ` Last location: ${mapsLink(pos)}` : "") +
     ` Live view: ${link}`;
   await alertCircle(settings, circle, body).catch(() => {});
+  await sendEmergencyPush(settings, label).catch(() => {});
   return link;
 }
