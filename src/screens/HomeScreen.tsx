@@ -50,7 +50,7 @@ export default function HomeScreen(props: {
         <PanicButton label={`Hold for ${L.panic}`} onTrigger={() => { buzz([300]); props.onPanic(); }} />
         {sirenOn && (
           <button onClick={() => { stopSiren(); setSirenOn(false); }} className="mt-4 rounded-xl bg-amber-500/20 border border-amber-500/40 px-6 py-2.5 font-semibold text-amber-300">
-            Stop siren
+            Stop alarm
           </button>
         )}
       </Card>
@@ -60,7 +60,7 @@ export default function HomeScreen(props: {
         <Btn onClick={() => props.go("#/payments")}>Payments</Btn>
         <Btn onClick={() => props.go("#/circle")}>Safety circle</Btn>
         <Btn onClick={() => { if (sirenOn) { stopSiren(); setSirenOn(false); } else { startSiren(); setSirenOn(true); } }}>
-          {sirenOn ? "Stop siren" : "Test siren"}
+          {sirenOn ? "Stop alarm" : "Test alarm"}
         </Btn>
       </div>
 

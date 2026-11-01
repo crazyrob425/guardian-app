@@ -31,7 +31,14 @@ in-person providers who need a bodyguard in their pocket.
   location from their browser, you get "approaching" / "arrived" pings (geofenced)
 - **Emergency video/audio monitoring** — on panic, your circle can watch a live
   WebRTC stream from your phone (P2P, signaled over the encrypted session channel)
-- **App siren alarm** — Web Audio siren, no files needed
+- **Selectable alarm sounds** — Settings picks what panic / missed check-out / SOS
+  blast on loop: (1) Police Siren (synthesized wail+yelp), (2) Piercing Shriek
+  (non-stop 2.85 kHz personal alarm), (3) BNE Security Voice Warning (TTS
+  announcement: live recording + tracked crime scene + armed officers en route,
+  after a two-tone chime), (4) Air Raid Siren, (5) Security Klaxon (two-tone) —
+  all in `public/sounds/`, precached by the PWA — or **your own audio file**
+  picked from the phone, stored on-device in IndexedDB, never uploaded.
+  Playback falls back to the Web Audio synth siren if a file can't play.
 - **Duress PIN** — unlocks normally but *silently* alerts your circle
 - **Discreet mode** — neutral wording everywhere ("appointment", "guest"); nothing
   on screen outs what you do

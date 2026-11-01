@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TopBar, Card, Btn, Field, inputCls } from "../components/ui";
-import { store, DEFAULT_SETTINGS, type Settings } from "../lib/store";
+import { store, DEFAULT_SETTINGS, type Settings, type AlarmSoundId } from "../lib/store";
+import { ALARM_SOUNDS, alarmFileUrl } from "../lib/audio";
+import { saveCustomAlarm, loadCustomAlarm, clearCustomAlarm } from "../lib/alarmdb";
 import { sha256Hex } from "../lib/crypto";
 import { sendSms } from "../lib/sms";
 import { genTopic, sendPush, circleInviteText, ntfyConfigured } from "../lib/notify";
@@ -15,6 +17,64 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
   const [smsTest, setSmsTest] = useState("");
   const [pushTest, setPushTest] = useState("");
   const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
+  const [previewing, setPreviewing] = useState<string>("");
+  const previewRef = useRef<HTMLAudioElement | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const stopPreview = () => {
+    if (previewRef.current) { try { previewRef.current.pause(); } catch { /* noop */ } previewRef.current = null; }
+    if (previewUrlRef.current) { URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = null; }
+    setPreviewing("");
+  };
+  useEffect(() => stopPreview, []);
+
+  const playPreview = async (key: string, src: string) => {
+    if (previewing === key) { stopPreview(); return; }
+    stopPreview();
+    const el = new Audio(src);
+    el.onended = () => setPreviewing("");
+    previewRef.current = el;
+    setPreviewing(key);
+    try { await el.play(); } catch { setPreviewing(""); }
+  };
+
+  const previewCustom = async () => {
+    if (previewing === "custom") { stopPreview(); return; }
+    const rec = await loadCustomAlarm();
+    if (!rec) return;
+    previewUrlRef.current = URL.createObjectURL(rec.blob);
+    await playPreview("custom", previewUrlRef.current);
+  };
+
+  const selectAlarm = (id: AlarmSoundId) => {
+    const next = { ...s, alarmSound: id };
+    setS(next);
+    store.saveSettings(next);
+    props.onChanged();
+    setSaved("Alarm sound saved.");
+    setTimeout(() => setSaved(""), 2000);
+  };
+
+  const pickCustomFile = async (f: File | undefined) => {
+    if (!f) return;
+    await saveCustomAlarm(f);
+    const next = { ...s, alarmSound: "custom" as AlarmSoundId, alarmCustomName: f.name };
+    setS(next);
+    store.saveSettings(next);
+    props.onChanged();
+    setSaved(`Custom alarm set: ${f.name}`);
+    setTimeout(() => setSaved(""), 2500);
+  };
+
+  const removeCustom = async () => {
+    stopPreview();
+    await clearCustomAlarm();
+    const next = { ...s, alarmCustomName: "", alarmSound: s.alarmSound === "custom" ? ("police" as AlarmSoundId) : s.alarmSound };
+    setS(next);
+    store.saveSettings(next);
+    props.onChanged();
+  };
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS((p) => ({ ...p, [k]: v }));
 
@@ -112,6 +172,51 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
           <Field label="Arrival alert radius (meters)" hint="How close your guest must be before you get the 'approaching' ping.">
             <input className={inputCls} value={String(s.arrivalRadiusM)} onChange={(e) => set("arrivalRadiusM", Math.max(25, parseInt(e.target.value) || 150))} inputMode="numeric" />
           </Field>
+        </Card>
+
+        <Card className="space-y-3">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Alarm sound</p>
+          <p className="text-sm text-zinc-400">The sound your panic button, missed check-out and SOS blast on loop until you stand down. Tap ▶ to preview — picking one saves it instantly.</p>
+          {ALARM_SOUNDS.map((d) => (
+            <div key={d.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${s.alarmSound === d.id ? "border-red-500/50 bg-red-500/10" : "border-white/10 bg-white/[0.02]"}`}>
+              <button onClick={() => selectAlarm(d.id)} className="flex flex-1 items-center gap-3 text-left">
+                <span className={`grid h-5 w-5 flex-none place-items-center rounded-full border ${s.alarmSound === d.id ? "border-red-400" : "border-zinc-600"}`}>
+                  {s.alarmSound === d.id && <span className="h-2.5 w-2.5 rounded-full bg-red-400" />}
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-zinc-100">{d.name}</span>
+                  <span className="block text-xs text-zinc-500">{d.desc}</span>
+                </span>
+              </button>
+              <button onClick={() => playPreview(d.id, alarmFileUrl(d.id))} className="flex-none rounded-lg bg-white/10 px-3 py-2 text-sm text-zinc-100" aria-label={`Preview ${d.name}`}>
+                {previewing === d.id ? "⏹ Stop" : "▶ Play"}
+              </button>
+            </div>
+          ))}
+          <div className={`rounded-xl border px-3 py-2.5 ${s.alarmSound === "custom" ? "border-red-500/50 bg-red-500/10" : "border-white/10 bg-white/[0.02]"}`}>
+            <div className="flex items-center gap-3">
+              <button onClick={() => { if (s.alarmCustomName) selectAlarm("custom"); }} className="flex flex-1 items-center gap-3 text-left">
+                <span className={`grid h-5 w-5 flex-none place-items-center rounded-full border ${s.alarmSound === "custom" ? "border-red-400" : "border-zinc-600"}`}>
+                  {s.alarmSound === "custom" && <span className="h-2.5 w-2.5 rounded-full bg-red-400" />}
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-zinc-100">Your Own Sound File</span>
+                  <span className="block text-xs text-zinc-500">{s.alarmCustomName ? s.alarmCustomName : "Pick any audio file from this phone — a recording, a song, anything."}</span>
+                </span>
+              </button>
+              {s.alarmCustomName && (
+                <button onClick={previewCustom} className="flex-none rounded-lg bg-white/10 px-3 py-2 text-sm text-zinc-100">
+                  {previewing === "custom" ? "⏹ Stop" : "▶ Play"}
+                </button>
+              )}
+            </div>
+            <div className="mt-2.5 flex gap-2 pl-8">
+              <button onClick={() => fileInputRef.current?.click()} className="rounded-lg bg-white/10 px-3 py-2 text-sm text-zinc-100">{s.alarmCustomName ? "Replace file" : "📁 Choose file from phone"}</button>
+              {s.alarmCustomName && <button onClick={removeCustom} className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">Remove</button>}
+            </div>
+            <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => { pickCustomFile(e.target.files?.[0]); e.target.value = ""; }} />
+          </div>
+          <p className="text-xs text-zinc-600">Your file stays on this device only (stored in the app, never uploaded). Big files are fine — it just has to live with being loud.</p>
         </Card>
 
         <Card className="space-y-4">

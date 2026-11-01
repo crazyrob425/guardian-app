@@ -7,8 +7,12 @@ export interface CircleMember {
   phone: string; // E.164, for SMS alerts
 }
 
+export type AlarmSoundId = "police" | "piercing" | "voice" | "airraid" | "klaxon" | "custom";
+
 export interface Settings {
   displayName: string;
+  alarmSound: AlarmSoundId; // which alarm plays on panic / missed check-out / SOS
+  alarmCustomName: string; // file name of the user's own sound (blob lives in IndexedDB)
   pinHash: string; // sha256, "" = no lock
   duressPinHash: string; // "" = disabled
   discreetMode: boolean;
@@ -44,6 +48,8 @@ const K = {
 
 export const DEFAULT_SETTINGS: Settings = {
   displayName: "",
+  alarmSound: "police",
+  alarmCustomName: "",
   pinHash: "",
   duressPinHash: "",
   discreetMode: true,
