@@ -11,7 +11,8 @@ import SettingsScreen from "./screens/SettingsScreen";
 import { store, type ActiveSession } from "./lib/store";
 import { genKey, exportKey, randomId } from "./lib/crypto";
 import { getCurrentPosition } from "./lib/geo";
-import { startSiren, stopSiren } from "./lib/audio";
+import { startSiren, stopSiren, lockAlarm, isAlarmLocked } from "./lib/audio";
+import PinUnlock from "./components/PinUnlock";
 import { sendEmergencyAlert } from "./lib/emergency";
 import { watchLink } from "./lib/sync";
 import { shareLink, type SharePayload } from "./lib/share";
@@ -51,6 +52,7 @@ export default function App() {
   const [session, setSession] = useState<ActiveSession | null>(store.getSession());
   const [unlocked, setUnlocked] = useState(false);
   const [sos, setSos] = useState<{ watchUrl: string; count: number } | null>(null);
+  const [pinUnlockOpen, setPinUnlockOpen] = useState(false);
   const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
 
   useEffect(() => {
@@ -92,6 +94,7 @@ export default function App() {
     const s = store.getSettings();
     const circle = store.getCircle();
     startSiren();
+    lockAlarm();
     try {
       const id = randomId(12);
       const keyB64 = await exportKey(await genKey());
@@ -147,14 +150,22 @@ export default function App() {
       {sos && route.name === "home" && (
         <div className="border-b border-red-500/40 bg-red-500/10 px-4 py-3 text-center">
           <p className="text-sm font-bold uppercase tracking-widest text-red-300">SOS sent to {sos.count} {sos.count === 1 ? "person" : "people"}</p>
+          {isAlarmLocked() && <p className="mt-0.5 text-xs text-red-200/70">Alarm is PIN-locked — only your Settings PIN can silence it.</p>}
           <div className="mt-2 flex justify-center gap-2">
-            <button onClick={() => { stopSiren(); setSos(null); }} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-zinc-200">Stop alarm / dismiss</button>
+            <button onClick={() => { if (isAlarmLocked()) { setPinUnlockOpen(true); return; } stopSiren(); setSos(null); }} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-zinc-200">{isAlarmLocked() ? "🔒 Enter PIN to stop alarm" : "Stop alarm / dismiss"}</button>
             {sos.watchUrl && <button onClick={() => { navigator.clipboard?.writeText(sos.watchUrl).catch(() => {}); }} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-zinc-200">Copy live link</button>}
             {sos.watchUrl && <button onClick={async () => { const p = { title: "Guardian SOS — watch over me", text: "SOS — I need help. This private link shows my live location, please open it now and don't forward it:", url: sos.watchUrl }; const r = await shareLink(p); if (r === "fallback") setSharePayload(p); }} className="rounded-lg bg-red-500/30 px-4 py-2 text-sm font-semibold text-red-100">📤 Share live link</button>}
           </div>
         </div>
       )}
       {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
+      {pinUnlockOpen && (
+        <PinUnlock
+          onUnlocked={() => { setPinUnlockOpen(false); stopSiren(); setSos(null); }}
+          onDuress={() => { void handleUnlock(true); }}
+          onKeepSounding={() => setPinUnlockOpen(false)}
+        />
+      )}
       {screen}
     </div>
   );

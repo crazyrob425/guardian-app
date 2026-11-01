@@ -35,6 +35,25 @@ let audioUrl: string | null = null; // object URL to revoke (custom files)
 let webFallbackStop: (() => void) | null = null;
 let alarmOn = false;
 
+// ---- panic PIN lock ---------------------------------------------------------
+// Once a real panic fires (panic button, missed check-out, home SOS), the
+// alarm locks: stopAlarm()/stopSiren() refuse until the lock is released
+// by PinUnlock after the user enters the App PIN from Settings. If no App
+// PIN is set, lockAlarm() is a no-op and the alarm stops normally.
+let pinLock = false;
+
+export function lockAlarm(): void {
+  try {
+    if (store.getSettings().pinHash) pinLock = true;
+  } catch { /* noop */ }
+}
+export function isAlarmLocked(): boolean {
+  return pinLock;
+}
+export function unlockAlarm(): void {
+  pinLock = false;
+}
+
 function teardownFile() {
   if (audioEl) {
     try { audioEl.pause(); audioEl.removeAttribute("src"); audioEl.load(); } catch { /* noop */ }
@@ -49,7 +68,7 @@ export function isAlarmPlaying(): boolean {
 
 /** Start the selected alarm, looping. Never rejects — falls back to synth. */
 export async function startAlarm(): Promise<void> {
-  stopAlarm();
+  stopAlarm(true);
   alarmOn = true;
   const settings = store.getSettings();
   try {
@@ -74,20 +93,28 @@ export async function startAlarm(): Promise<void> {
   }
 }
 
-export function stopAlarm(): void {
+/**
+ * Stop the alarm. Returns false (and keeps sounding) when the panic PIN
+ * lock is engaged and `force` isn't set — internal restarts and the
+ * PinUnlock success path pass force. A refused stop means the caller
+ * should show the PIN pad.
+ */
+export function stopAlarm(force = false): boolean {
+  if (pinLock && !force) return false;
   alarmOn = false;
   teardownFile();
   if (webFallbackStop) { try { webFallbackStop(); } catch { /* noop */ } webFallbackStop = null; }
   stopSirenNodes();
+  return true;
 }
 
 // Back-compat names used across the app (panic, SOS, test buttons).
 export function startSiren(): () => void {
   void startAlarm();
-  return stopSiren;
+  return () => { stopSiren(); };
 }
-export function stopSiren(): void {
-  stopAlarm();
+export function stopSiren(): boolean {
+  return stopAlarm();
 }
 export function isSirenOn(): boolean {
   return alarmOn;

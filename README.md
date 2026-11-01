@@ -31,6 +31,13 @@ in-person providers who need a bodyguard in their pocket.
   location from their browser, you get "approaching" / "arrived" pings (geofenced)
 - **Emergency video/audio monitoring** — on panic, your circle can watch a live
   WebRTC stream from your phone (P2P, signaled over the encrypted session channel)
+- **Panic PIN lock** — the instant panic fires (button, missed check-out, or
+  home SOS), the alarm locks to the App PIN set in Settings: every stop path
+  (stand down, check out, SOS dismiss) routes through a PIN pad, and the
+  audio engine itself refuses to stop while locked. An attacker holding the
+  phone can't silence it. The duress PIN also silences it — but fires a
+  silent coercion alert to the circle. No App PIN set = no lock (Settings
+  warns about this in the Lock screen card).
 - **Selectable alarm sounds** — Settings picks what panic / missed check-out / SOS
   blast on loop: (1) Police Siren (synthesized wail+yelp), (2) Piercing Shriek
   (non-stop 2.85 kHz personal alarm), (3) BNE Security Voice Warning (TTS

@@ -49,7 +49,7 @@ export default function HomeScreen(props: {
       <Card className="flex flex-col items-center py-8">
         <PanicButton label={`Hold for ${L.panic}`} onTrigger={() => { buzz([300]); props.onPanic(); }} />
         {sirenOn && (
-          <button onClick={() => { stopSiren(); setSirenOn(false); }} className="mt-4 rounded-xl bg-amber-500/20 border border-amber-500/40 px-6 py-2.5 font-semibold text-amber-300">
+          <button onClick={() => { if (stopSiren()) setSirenOn(false); }} className="mt-4 rounded-xl bg-amber-500/20 border border-amber-500/40 px-6 py-2.5 font-semibold text-amber-300">
             Stop alarm
           </button>
         )}
@@ -59,7 +59,7 @@ export default function HomeScreen(props: {
         <Btn variant="primary" onClick={() => props.go("#/date")}>Start {L.date}</Btn>
         <Btn onClick={() => props.go("#/payments")}>Payments</Btn>
         <Btn onClick={() => props.go("#/circle")}>Safety circle</Btn>
-        <Btn onClick={() => { if (sirenOn) { stopSiren(); setSirenOn(false); } else { startSiren(); setSirenOn(true); } }}>
+        <Btn onClick={() => { if (sirenOn) { const stopped = stopSiren(); if (stopped) setSirenOn(false); } else { startSiren(); setSirenOn(true); } }}>
           {sirenOn ? "Stop alarm" : "Test alarm"}
         </Btn>
       </div>

@@ -162,6 +162,9 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
               <button onClick={() => { setPinHash("duressPinHash", duress); setDuress(""); }} className="shrink-0 rounded-xl bg-white/10 px-4 text-sm text-zinc-200">Set</button>
             </div>
           </Field>
+          <p className="rounded-xl border border-red-500/25 bg-red-500/5 px-3 py-2.5 text-xs leading-relaxed text-red-200/80">
+            🔒 <span className="font-semibold text-red-200">Panic lock:</span> the moment the panic button fires (or a check-out is missed), the alarm locks to your lock PIN — it can <span className="font-semibold text-red-200">only</span> be silenced by entering that PIN. Nobody can just tap it off. Silencing with the duress PIN stops the sound but silently alerts your circle that you were coerced. {s.pinHash ? "" : "Set a lock PIN above to arm the panic lock — without one, the alarm can be stopped by anyone holding the phone."}
+          </p>
         </Card>
 
         <Card className="space-y-4">

@@ -7,7 +7,8 @@ import { store } from "../lib/store";
 import { importKey } from "../lib/crypto";
 import { connectSession, clientLink, watchLink, type SyncHandle, type AlertMsg, type PosMsg } from "../lib/sync";
 import { watchPosition, distanceM, formatDist, mapsLink, type LatLng } from "../lib/geo";
-import { startSiren, stopSiren, playChime, buzz } from "../lib/audio";
+import { startSiren, stopSiren, playChime, buzz, lockAlarm, isAlarmLocked } from "../lib/audio";
+import PinUnlock from "../components/PinUnlock";
 import { alertCircle } from "../lib/sms";
 import { sendEmergencyPush } from "../lib/notify";
 import { shareLink, type SharePayload } from "../lib/share";
@@ -32,6 +33,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const [panicOn, setPanicOn] = useState(false);
   const [copied, setCopied] = useState("");
   const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
+  const [pinGate, setPinGate] = useState<null | "standdown" | "checkout">(null);
   const [syncErr, setSyncErr] = useState("");
 
   const syncRef = useRef<SyncHandle | null>(null);
@@ -136,6 +138,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const escalateMissed = async () => {
     const s = sessionRef.current!;
     startSiren();
+    lockAlarm();
     buzz([500, 200, 500]);
     pushFeed("MISSED CHECK-OUT — circle alerted.", "danger");
     const key = await importKey(s.keyB64).catch(() => null);
@@ -154,6 +157,12 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   };
 
   const doCheckOut = async () => {
+    // Panic lock: checking out silences the alarm, so it needs the PIN first.
+    if (isAlarmLocked()) { setPinGate("checkout"); return; }
+    await doCheckOutNow();
+  };
+
+  const doCheckOutNow = async () => {
     const s = sessionRef.current!;
     stopSiren();
     const sync = syncRef.current;
@@ -169,6 +178,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     const s = sessionRef.current!;
     setPanicOn(true);
     startSiren();
+    lockAlarm();
     buzz([400, 100, 400, 100, 400]);
     pushFeed("PANIC TRIGGERED — circle alerted.", "danger");
     const sync = syncRef.current;
@@ -196,6 +206,21 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   };
 
   const standDown = async () => {
+    // Panic lock: standing down silences the alarm, so it needs the PIN first.
+    if (isAlarmLocked()) { setPinGate("standdown"); return; }
+    await standDownNow();
+  };
+
+  /** Silent coercion alert: duress PIN used to silence the alarm. */
+  const duressSilence = () => {
+    const sync = syncRef.current;
+    if (sync) {
+      sync.publish("alert", { type: "duress", ts: Date.now(), pos: myPosRef.current ?? undefined }, false).catch(() => {});
+    }
+    sendEmergencyPush(settings, "DURESS — the alarm was silenced with the duress PIN. Possible coercion — check on them NOW").catch(() => {});
+  };
+
+  const standDownNow = async () => {
     const s = sessionRef.current!;
     setPanicOn(false);
     stopSiren();
@@ -271,7 +296,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
         {(panicOn || escalated) && (
           <Card className="border-red-500/50 bg-red-500/10 text-center">
             <p className="mb-1 text-lg font-black uppercase tracking-widest text-red-400">Emergency active</p>
-            <p className="mb-4 text-sm text-red-200/80">Your circle has your live location. Siren is sounding.</p>
+            <p className="mb-4 text-sm text-red-200/80">Your circle has your live location. The siren is sounding — and it's PIN-locked: only your Settings PIN can silence it.</p>
             <Btn variant="emerald" onClick={standDown}>I'm OK — stand down</Btn>
           </Card>
         )}
@@ -326,6 +351,13 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
           </Card>
         )}
         {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
+        {pinGate && (
+          <PinUnlock
+            onUnlocked={() => { const g = pinGate; setPinGate(null); if (g === "standdown") void standDownNow(); else void doCheckOutNow(); }}
+            onDuress={duressSilence}
+            onKeepSounding={() => setPinGate(null)}
+          />
+        )}
       </div>
     </div>
   );
