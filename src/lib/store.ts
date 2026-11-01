@@ -7,7 +7,7 @@ export interface CircleMember {
   phone: string; // E.164, for SMS alerts
 }
 
-export type AlarmSoundId = "police" | "piercing" | "voice" | "airraid" | "klaxon" | "custom";
+export type AlarmSoundId = "police" | "piercing" | "voice" | "help" | "airraid" | "klaxon" | "custom";
 
 export interface Settings {
   displayName: string;

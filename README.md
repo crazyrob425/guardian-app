@@ -35,7 +35,9 @@ in-person providers who need a bodyguard in their pocket.
   blast on loop: (1) Police Siren (synthesized wail+yelp), (2) Piercing Shriek
   (non-stop 2.85 kHz personal alarm), (3) BNE Security Voice Warning (TTS
   announcement: live recording + tracked crime scene + armed officers en route,
-  after a two-tone chime), (4) Air Raid Siren, (5) Security Klaxon (two-tone) —
+  after a two-tone chime; the file alternates a woman's voice pass with a man's),
+  (4) Help — Being Attacked! (high-pitched desperate scream-call, pitch-shifted
+  TTS), (5) Air Raid Siren, (6) Security Klaxon (two-tone) —
   all in `public/sounds/`, precached by the PWA — or **your own audio file**
   picked from the phone, stored on-device in IndexedDB, never uploaded.
   Playback falls back to the Web Audio synth siren if a file can't play.
