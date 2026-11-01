@@ -18,7 +18,7 @@ export const ALARM_SOUNDS: AlarmSoundDef[] = [
   { id: "police", name: "Police Siren", desc: "Realistic wail-and-yelp patrol cycle. Instant authority.", file: "sounds/police.mp3" },
   { id: "piercing", name: "Piercing Shriek", desc: "Non-stop high-pitched personal-alarm scream. Impossible to talk over.", file: "sounds/piercing.mp3" },
   { id: "voice", name: "BNE Security Voice Warning", desc: "Security-system voice announcing live recording, tracking — and armed officers en route. Alternates: woman's voice, then a man's.", file: "sounds/voice-warning.mp3" },
-  { id: "help", name: "Help — Being Attacked!", desc: "A desperate, high-pitched scream for help: attacked, assaulted, emergency. Unignorable by design.", file: "sounds/help-attack.mp3" },
+  { id: "help", name: "Help — Being Attacked!", desc: "A real woman's desperate cry for help — sirens bookend her screaming she's being attacked by a stranger, ordering YOU to call 911. Built on bystander-response research.", file: "sounds/help-attack.mp3" },
   { id: "airraid", name: "Air Raid Siren", desc: "Slow civil-defense rise and fall. Deep, ominous, heard for blocks.", file: "sounds/airraid.mp3" },
   { id: "klaxon", name: "Security Klaxon", desc: "Classic two-tone building alarm — the dee-dah that means evacuate.", file: "sounds/klaxon.mp3" },
 ];

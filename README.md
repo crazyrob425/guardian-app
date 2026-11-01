@@ -43,8 +43,13 @@ in-person providers who need a bodyguard in their pocket.
   (non-stop 2.85 kHz personal alarm), (3) BNE Security Voice Warning (TTS
   announcement: live recording + tracked crime scene + armed officers en route,
   after a two-tone chime; the file alternates a woman's voice pass with a man's),
-  (4) Help — Being Attacked! (high-pitched desperate scream-call, pitch-shifted
-  TTS), (5) Air Raid Siren, (6) Security Klaxon (two-tone) —
+  (4) Help — Being Attacked! (realistic female distress cry, rebuilt v0.4.2 on
+  the research: Arnal et al. 2015 scream "roughness" — 30–150 Hz loudness
+  flicker that recruits the amygdala — via strained delivery + light 70 Hz AM
+  + presence EQ, NO pitch shift; content follows Latané & Darley bystander
+  findings — unambiguous emergency, stranger-attack framing "I don't know
+  him!", and a direct singular command "YOU! Call 911! NOW!"; siren bursts
+  bookend the cry), (5) Air Raid Siren, (6) Security Klaxon (two-tone) —
   all in `public/sounds/`, precached by the PWA — or **your own audio file**
   picked from the phone, stored on-device in IndexedDB, never uploaded.
   Playback falls back to the Web Audio synth siren if a file can't play.
