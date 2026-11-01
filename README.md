@@ -1,5 +1,19 @@
 # Guardian — discreet personal safety app
 
+## Live (2026-11-01)
+
+- **Sales / download site:** https://guardian.blacklisted.studio/
+- **The app (install from here):** https://guardian-app.blacklisted.studio/
+- Hosting: Cloudflare Pages projects `guardian-blacklisted` (site, source in
+  `~/workspace/guardian-site/`) and `guardian-app` (this app's `dist/`), each
+  fronted by a fetch-proxy Worker (`guardian-proxy` / `guardian-app-proxy`)
+  attached via Workers Domains — the same pattern as read.blacklisted.studio,
+  because the API token has no DNS-edit scope. Note: the app must live on a
+  first-level subdomain — `app.guardian.blacklisted.studio` failed (Cloudflare
+  Universal SSL doesn't cover second-level subdomains; empty replies), so the
+  app uses `guardian-app.blacklisted.studio`.
+
+
 A mobile-first **PWA** (installable on iOS + Android, no app store needed) built for
 in-person providers who need a bodyguard in their pocket.
 
