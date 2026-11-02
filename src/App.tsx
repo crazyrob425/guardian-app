@@ -10,6 +10,11 @@ import PaymentsScreen from "./screens/PaymentsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import ClientsScreen from "./screens/ClientsScreen";
 import UpdateToast from "./components/UpdateToast";
+import DecoyScreen from "./components/DecoyScreen";
+import LedgerScreen from "./screens/LedgerScreen";
+import BookingsScreen from "./screens/BookingsScreen";
+import VaultScreen from "./screens/VaultScreen";
+import PlacesScreen from "./screens/PlacesScreen";
 import FakeCall from "./components/FakeCall";
 import { fakeCallDue, clearFakeCall } from "./lib/fakecall";
 import { ErrorBoundary } from "react-error-boundary";
@@ -28,6 +33,7 @@ type Route =
   | { name: "home" } | { name: "date" } | { name: "session" }
   | { name: "circle" } | { name: "payments" } | { name: "settings" }
   | { name: "clients" }
+  | { name: "ledger" } | { name: "bookings" } | { name: "vault" } | { name: "places" }
   | { name: "client"; id: string; k: string }
   | { name: "watch"; id: string; k: string };
 
@@ -46,6 +52,10 @@ function parseHash(): Route {
     case "payments": return { name: "payments" };
     case "settings": return { name: "settings" };
     case "clients": return { name: "clients" };
+    case "ledger": return { name: "ledger" };
+    case "bookings": return { name: "bookings" };
+    case "vault": return { name: "vault" };
+    case "places": return { name: "places" };
     default: return { name: "home" };
   }
 }
@@ -63,6 +73,49 @@ export default function App() {
   const [pinUnlockOpen, setPinUnlockOpen] = useState(false);
   const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
   const [fakeRinging, setFakeRinging] = useState(false);
+  const [decoy, setDecoy] = useState(false);
+  const [deadmanDue, setDeadmanDue] = useState(false);
+  const [deadmanCount, setDeadmanCount] = useState(60);
+
+  // Dead-man's switch (Phase 5): if enabled and no proof-of-life inside the
+  // interval, demand a check-in — and if that's ignored for 60 s, fire the
+  // SOS exactly like the panic button. Unlocking counts as proof of life.
+  useEffect(() => {
+    if (!unlocked || decoy || !settings.deadmanEnabled) return;
+    const check = () => {
+      let last = 0;
+      try { last = parseInt(localStorage.getItem("guardian.deadman.v1") || "0", 10) || 0; } catch { /* noop */ }
+      if (!last) { try { localStorage.setItem("guardian.deadman.v1", String(Date.now())); } catch { /* noop */ } return; }
+      if (Date.now() - last > settings.deadmanHours * 3600 * 1000) setDeadmanDue(true);
+    };
+    check();
+    const t = window.setInterval(check, 20000);
+    return () => window.clearInterval(t);
+  }, [unlocked, decoy, settings.deadmanEnabled, settings.deadmanHours]);
+
+  useEffect(() => {
+    if (!deadmanDue) return;
+    setDeadmanCount(60);
+    const t = window.setInterval(() => {
+      setDeadmanCount((c) => {
+        if (c <= 1) {
+          window.clearInterval(t);
+          setDeadmanDue(false);
+          try { localStorage.setItem("guardian.deadman.v1", String(Date.now())); } catch { /* noop */ }
+          void panicNow();
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadmanDue]);
+
+  const deadmanOk = () => {
+    try { localStorage.setItem("guardian.deadman.v1", String(Date.now())); } catch { /* noop */ }
+    setDeadmanDue(false);
+  };
 
   // Fake rescue call host: fires the scheduled call from any screen.
   useEffect(() => {
@@ -93,6 +146,7 @@ export default function App() {
   /** Silent duress unlock: looks normal, alerts the circle in the background. */
   const handleUnlock = async (duress: boolean) => {
     setUnlocked(true);
+    try { localStorage.setItem("guardian.deadman.v1", String(Date.now())); } catch { /* noop */ }
     if (!duress) return;
     try {
       const s = store.getSettings();
@@ -128,7 +182,15 @@ export default function App() {
   if (needsLock) {
     return (
       <div className="min-h-dvh bg-[#0a0a0f] text-zinc-100">
-        <LockScreen pinHash={settings.pinHash} duressPinHash={settings.duressPinHash} onUnlock={handleUnlock} title={discreet ? "Guardian" : "Guardian"} />
+        <LockScreen pinHash={settings.pinHash} duressPinHash={settings.duressPinHash} decoyPinHash={settings.decoyPinHash} onUnlock={handleUnlock} onDecoy={() => { setDecoy(true); setUnlocked(true); }} title={discreet ? "Guardian" : "Guardian"} />
+      </div>
+    );
+  }
+
+  if (decoy) {
+    return (
+      <div className="min-h-dvh bg-[#0a0a0f] text-zinc-100">
+        <DecoyScreen onExit={() => { setDecoy(false); setUnlocked(false); }} />
       </div>
     );
   }
@@ -158,6 +220,18 @@ export default function App() {
     case "payments":
       screen = <PaymentsScreen onBack={back} />;
       break;
+    case "ledger":
+      screen = <LedgerScreen onBack={back} />;
+      break;
+    case "bookings":
+      screen = <BookingsScreen onBack={back} go={go} />;
+      break;
+    case "vault":
+      screen = <VaultScreen onBack={back} />;
+      break;
+    case "places":
+      screen = <PlacesScreen onBack={back} />;
+      break;
     case "settings":
       screen = <SettingsScreen onBack={back} onChanged={refresh} />;
       break;
@@ -180,6 +254,16 @@ export default function App() {
       )}
       {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
       <UpdateToast />
+      {deadmanDue && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-amber-500/40 bg-[#141007] p-6 text-center shadow-2xl">
+            <p className="text-3xl">⏰</p>
+            <h2 className="mt-2 text-lg font-black uppercase tracking-widest text-amber-300">Are you OK?</h2>
+            <p className="mt-1 text-sm text-zinc-400">Guardian hasn't had a check-in from you in {settings.deadmanHours} hours. If you don't answer in <strong className="text-amber-200">{deadmanCount}s</strong>, your circle gets an emergency alert with your location.</p>
+            <button onClick={deadmanOk} className="mt-5 w-full rounded-xl bg-emerald-500 py-3.5 font-bold text-black">I'm OK — check in</button>
+          </div>
+        </div>
+      )}
       {/* Crash-proofing (Phase 1): a failure in any single screen shows a
           calm fallback instead of a dead app. The SOS banner above and any
           sounding alarm live OUTSIDE this boundary, so they keep working. */}

@@ -7,8 +7,20 @@ import { getCurrentPosition, type LatLng } from "../lib/geo";
 
 export default function DateSetupScreen(props: { discreet: boolean; onBack: () => void; go: (r: string) => void }) {
   const L = getLabels(props.discreet);
-  const [alias, setAlias] = useState("");
-  const [minutes, setMinutes] = useState("60");
+  // One-shot prefill from the booking board (Phase 5): "Start" on a booking
+  // lands here with alias + duration already filled.
+  const [prefill] = useState(() => {
+    try {
+      const raw = localStorage.getItem("guardian.prefill.v1");
+      if (raw) {
+        localStorage.removeItem("guardian.prefill.v1");
+        return JSON.parse(raw) as { alias?: string; durationMin?: number };
+      }
+    } catch { /* noop */ }
+    return null;
+  });
+  const [alias, setAlias] = useState(prefill?.alias ?? "");
+  const [minutes, setMinutes] = useState(String(prefill?.durationMin ?? 60));
   const [incall, setIncall] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(false);
   const [err, setErr] = useState("");

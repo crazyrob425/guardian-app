@@ -209,3 +209,26 @@ Private project. All rights reserved.
   language in Settings; guest watchers automatically get their own phone's language.
 - **Payment QR codes:** BTCPay checkout links render as a scannable QR on the invoice card.
 - Marketing site refreshed for Phases 2–4 (16 feature cards, 15 FAQs, JSON-LD in sync).
+
+## v0.9.0 — Phase 5: Moat (2026-11-01)
+- **Regulars book:** the client log grows ⭐ regulars, re-contact permission (not asked /
+  yes / never), a deniable 3-step follow-up flow (thank-you → review ask → re-invite) with
+  copy-and-stamp, no-show counters (fed automatically by the booking board), and
+  All/Regulars/Avoid filters.
+- **Booking board:** upcoming bookings with deposits; Start hands alias + duration to
+  date-setup as a one-shot prefill; Done / No-show / Cancel outcomes tracked.
+- **Earnings ledger:** income / expenses / mileage on-device, monthly summary, CSV export
+  for taxes. Non-outing by construction — it never leaves the phone.
+- **Evidence vault:** files (screenshots, confirmations) stored as blobs in the on-device
+  DB only, plus a session-journal export (trail + diagnostics JSON).
+- **Safe places:** named trusted spots saved from live GPS; the session screen shows the
+  nearest safe place and its distance while a date runs.
+- **Decoy mode:** a third PIN opens a boring fake Notes app (triple-tap the title to get
+  back to the real lock). No Guardian, no alerts — for coerced "just unlock it" moments.
+- **Dead-man's switch:** optional proof-of-life timer (2–24 h). Unlocking and checking in
+  count as proof of life; when it lapses, an "Are you OK?" interstitial counts down 60 s
+  and then fires the full SOS.
+- Deferred honestly: self-hosted Protomaps PMTiles + MapLibre return (needs a tile
+  pipeline build, and Phase 4 proved external style hosts unreliable), and on-device
+  transcription (model download size is a product decision, not a code gap).
+- Tests: 26/26.

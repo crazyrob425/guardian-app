@@ -52,6 +52,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const ackedRef = useRef(false);
   const reAlertedRef = useRef(false);
   const [watchers, setWatchers] = useState<string[]>([]);
+  const [nearPlace, setNearPlace] = useState<string>("");
   const [gpsMeta, setGpsMeta] = useState<{ acc: number; queued: number } | null>(null);
   const broadcastRef = useRef<BroadcastHandle | null>(null);
   const flagsRef = useRef({ approaching: false, arrived: false, escalated: false });
@@ -136,6 +137,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
               if (seqRef.current % 6 === 0) {
                 batteryLevel().then((b) => { batRef.current = b; });
                 reverseGeocode(fix.pos).then((a) => { if (a) addrRef.current = a; });
+                import("../screens/PlacesScreen").then((m) => m.nearestPlace(fix.pos)).then((n) => { if (n) setNearPlace(`${n.name} — ${n.dist}`); }).catch(() => {});
               }
             }
           },
@@ -423,6 +425,9 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
 
         {watchers.length > 0 && (
           <p className="text-center text-xs text-emerald-300">👁 {t("session.watchingNow")}: {watchers.join(", ")}</p>
+        )}
+        {nearPlace && (
+          <p className="text-center text-xs text-sky-300">🏠 Nearest safe place: {nearPlace}</p>
         )}
 
         <Card>

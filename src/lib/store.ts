@@ -32,6 +32,9 @@ export interface Settings {
   syncTransport: "auto" | "cloud" | "mqtt"; // Phase 3 protocol v2 transport
   cloudSyncUrl: string; // wss:// base of the Guardian Cloud sync worker
   language: "en" | "es"; // Phase 4 i18n (safety surfaces)
+  decoyPinHash: string; // Phase 5 decoy mode — opens a harmless fake app
+  deadmanEnabled: boolean; // Phase 5 dead-man's switch
+  deadmanHours: number; // check-in interval for the dead-man's switch
 }
 
 export interface ActiveSession {
@@ -73,6 +76,9 @@ export const DEFAULT_SETTINGS: Settings = {
   syncTransport: "auto",
   cloudSyncUrl: "wss://guardian-sync.blacklisted.studio",
   language: "en",
+  decoyPinHash: "",
+  deadmanEnabled: false,
+  deadmanHours: 4,
 };
 
 function read<T>(key: string, fallback: T): T {

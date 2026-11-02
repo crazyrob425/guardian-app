@@ -8,7 +8,9 @@ import { buzz } from "../lib/audio";
 export default function LockScreen(props: {
   pinHash: string;
   duressPinHash: string;
+  decoyPinHash?: string;
   onUnlock: (duress: boolean) => void;
+  onDecoy?: () => void;
   title: string;
 }) {
   const [pin, setPin] = useState("");
@@ -27,6 +29,9 @@ export default function LockScreen(props: {
     } else if (props.duressPinHash && (await verifyPin(pin, props.duressPinHash))) {
       // Silent: behaves like a normal unlock, but flags duress upstream.
       props.onUnlock(true);
+    } else if (props.decoyPinHash && props.onDecoy && (await verifyPin(pin, props.decoyPinHash))) {
+      // Decoy: opens the harmless fake notes app. No alert, no Guardian.
+      props.onDecoy();
     } else {
       buzz(120);
       setErr(t("lock.wrongPin"));

@@ -13,6 +13,30 @@ import i18n from "../lib/i18n";
 import { resetTour } from "../lib/tour";
 import { hasPasskey, registerPasskey, removePasskey, passkeySupported } from "../lib/passkey";
 
+function DecoyPinRow(props: { s: Settings; set: <K extends keyof Settings>(k: K, v: Settings[K]) => void }) {
+  const [pin, setPin] = useState("");
+  const [note, setNote] = useState("");
+  const save = async (v: string) => {
+    if (v && v.length < 4) { setNote("Decoy PIN must be 4+ digits."); return; }
+    const hash = v ? await hashPin(v) : "";
+    props.set("decoyPinHash", hash);
+    store.saveSettings({ ...props.s, decoyPinHash: hash });
+    setNote(v ? "Decoy PIN set & saved." : "Decoy PIN removed.");
+    setPin("");
+    setTimeout(() => setNote(""), 2500);
+  };
+  return (
+    <div>
+      <div className="flex gap-2">
+        <input className={inputCls} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder={props.s.decoyPinHash ? "New decoy PIN (blank + Set removes)" : "Set a decoy PIN"} inputMode="numeric" />
+        <button onClick={() => void save(pin)} className="shrink-0 rounded-xl bg-white/10 px-4 text-sm text-zinc-200">Set</button>
+      </div>
+      {note && <p className="mt-2 text-sm text-emerald-300">{note}</p>}
+      {props.s.decoyPinHash && <p className="mt-1 text-xs text-zinc-500">Decoy PIN is active.</p>}
+    </div>
+  );
+}
+
 /** Phase 3 security extras: transport choice, identity fingerprint, passkey. */
 function SecurityExtras(props: { s: Settings; set: <K extends keyof Settings>(k: K, v: Settings[K]) => void }) {
   const { s, set } = props;
@@ -65,6 +89,28 @@ function SecurityExtras(props: { s: Settings; set: <K extends keyof Settings>(k:
         <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Safety tour</p>
         <p className="text-sm text-zinc-400">The 60-second first-run walkthrough: panic button, check-ins, your circle, screening, and the rescue call.</p>
         <Btn onClick={() => { resetTour(); setMsg("Tour reset — it will replay next time you open the Home screen."); }}>Replay the safety tour</Btn>
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Decoy mode</p>
+        <p className="text-sm text-zinc-400">A third PIN that opens a harmless fake Notes app instead of Guardian — for the moment someone makes you “just unlock it.” Guardian stays hidden; no alert fires. Triple-tap the Notes title to get back to the real lock screen.</p>
+        <DecoyPinRow s={s} set={set} />
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Dead-man's switch</p>
+        <p className="text-sm text-zinc-400">If Guardian gets no proof of life from you within the interval — unlocking counts, checking in counts — it asks “Are you OK?” and, unanswered for 60 seconds, fires your SOS with your location. For the night everything goes wrong.</p>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-zinc-200">Enabled</span>
+          <button onClick={() => { const v = !s.deadmanEnabled; set("deadmanEnabled", v); store.saveSettings({ ...s, deadmanEnabled: v }); if (v) { try { localStorage.setItem("guardian.deadman.v1", String(Date.now())); } catch { /* noop */ } } }} className={`relative h-8 w-14 rounded-full ${s.deadmanEnabled ? "bg-emerald-500" : "bg-white/10"}`}>
+            <span className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-all ${s.deadmanEnabled ? "left-7" : "left-1"}`} />
+          </button>
+        </label>
+        <Field label="Check-in interval">
+          <select className={inputCls} value={s.deadmanHours} onChange={(e) => { const v = parseInt(e.target.value); set("deadmanHours", v); store.saveSettings({ ...s, deadmanHours: v }); }}>
+            {[2, 4, 8, 12, 24].map((h) => <option key={h} value={h}>{h} hours</option>)}
+          </select>
+        </Field>
       </Card>
 
       <Card className="space-y-3">

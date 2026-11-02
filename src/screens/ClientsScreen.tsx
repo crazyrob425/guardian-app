@@ -18,6 +18,7 @@ const VERDICTS: { id: ClientVerdict; label: string; cls: string }[] = [
 export default function ClientsScreen(props: { onBack: () => void }) {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | "regulars" | "avoid">("all");
   const [editing, setEditing] = useState<ClientRow | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState("");
@@ -30,6 +31,8 @@ export default function ClientsScreen(props: { onBack: () => void }) {
   useEffect(() => { void reload(); }, []);
 
   const filtered = clients.filter((c) => {
+    if (filter === "regulars" && !c.regular) return false;
+    if (filter === "avoid" && c.verdict !== "avoid") return false;
     const needle = q.replace(/\D/g, "");
     return (
       c.name.toLowerCase().includes(q.toLowerCase()) ||
@@ -96,6 +99,11 @@ export default function ClientsScreen(props: { onBack: () => void }) {
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
         <Card>
           <p className="mb-2 text-sm text-zinc-300">Your private screening log. It lives <strong>only on this phone</strong> — never uploaded, never synced, never shared. Checks you run here are not logged anywhere.</p>
+          <div className="mb-2 grid grid-cols-3 gap-2">
+            {(["all", "regulars", "avoid"] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)} className={`rounded-xl px-2 py-1.5 text-xs font-semibold ${filter === f ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-zinc-400"}`}>{f === "all" ? "All" : f === "regulars" ? "⭐ Regulars" : "🚫 Avoid"}</button>
+            ))}
+          </div>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, handle, email, or number…"
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600" />
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -118,12 +126,12 @@ export default function ClientsScreen(props: { onBack: () => void }) {
               <Card className="transition hover:border-white/25">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-zinc-100">{c.name || c.handle || c.phone || "Unnamed"}</p>
+                    <p className="truncate font-semibold text-zinc-100">{c.regular ? "⭐ " : ""}{c.name || c.handle || c.phone || "Unnamed"}</p>
                     <p className="truncate text-xs text-zinc-500">{[c.phone, c.handle && `@${c.handle}`, c.email].filter(Boolean).join(" · ")}</p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${v.cls}`}>{v.label}</span>
                 </div>
-                <p className="mt-1.5 text-xs text-zinc-600">Screening {doneChecks}/{SCREENING_CHECKS.length}{c.flags.length ? ` · ⚑ ${c.flags.length} hint${c.flags.length === 1 ? "" : "s"}` : ""}{c.lastSeenAt ? ` · last seen ${new Date(c.lastSeenAt).toLocaleDateString()}` : ""}</p>
+                <p className="mt-1.5 text-xs text-zinc-600">Screening {doneChecks}/{SCREENING_CHECKS.length}{c.flags.length ? ` · ⚑ ${c.flags.length} hint${c.flags.length === 1 ? "" : "s"}` : ""}{c.lastSeenAt ? ` · last seen ${new Date(c.lastSeenAt).toLocaleDateString()}` : ""}{(c.noShows ?? 0) > 0 ? ` · ${c.noShows} no-show${(c.noShows ?? 0) > 1 ? "s" : ""}` : ""}</p>
               </Card>
             </button>
           );
@@ -221,6 +229,34 @@ function ClientEditor(props: {
               </label>
             ))}
           </div>
+        </Card>
+
+        <Card>
+          <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">Regulars book</p>
+          <label className="flex cursor-pointer items-center gap-3 text-sm text-zinc-300">
+            <input type="checkbox" checked={!!row.regular} onChange={(e) => set({ regular: e.target.checked })} className="h-5 w-5 accent-emerald-500" />
+            ⭐ This is a regular
+          </label>
+          <p className="mb-1 mt-3 text-xs text-zinc-500">Permission to re-contact them?</p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["unknown", "yes", "no"] as const).map((v) => (
+              <button key={v} onClick={() => set({ rebook: v })} className={`rounded-xl px-2 py-2 text-xs font-bold ${(row.rebook ?? "unknown") === v ? "bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-400/40" : "bg-white/5 text-zinc-400"}`}>{v === "unknown" ? "Not asked" : v === "yes" ? "Yes — ask me" : "Never"}</button>
+            ))}
+          </div>
+          <p className="mb-1 mt-3 text-xs text-zinc-500">Follow-up flow — deniable, permission-based. Tap to copy, send it yourself, and stamp it done.</p>
+          <div className="space-y-2">
+            {([
+              ["thanks", "1 · Thank-you", `Hi ${row.name || "there"} — thank you for a lovely time. I really enjoyed meeting you. 💋`],
+              ["review", "2 · Review ask", "If you had a good time, a kind word where you found me helps me more than you know. No pressure at all."],
+              ["recontact", "3 · Re-invite", "I'll be around this week if you'd like to do that again sometime. No worries either way."],
+            ] as const).map(([k, label2, text]) => (
+              <div key={k} className="flex items-center justify-between gap-2">
+                <span className="text-sm text-zinc-300">{label2}{row.followUps?.[k] ? <span className="ml-2 text-xs text-emerald-300">✓ {new Date(row.followUps[k]!).toLocaleDateString()}</span> : ""}</span>
+                <button onClick={async () => { try { await navigator.clipboard.writeText(text); } catch { /* noop */ } set({ followUps: { ...(row.followUps ?? {}), [k]: Date.now() } }); }} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100">Copy + stamp</button>
+              </div>
+            ))}
+          </div>
+          {(row.noShows ?? 0) > 0 && <p className="mt-3 text-xs text-amber-300">⚑ {row.noShows} no-show(s) on record.</p>}
         </Card>
 
         <Card>

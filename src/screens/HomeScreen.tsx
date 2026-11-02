@@ -101,6 +101,14 @@ export default function HomeScreen(props: {
         </Card>
       )}
 
+      <p className="text-center text-xs uppercase tracking-widest text-zinc-600">Your business</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Btn data-tour="bookings" onClick={() => props.go("#/bookings")}>📅 Bookings</Btn>
+        <Btn onClick={() => props.go("#/ledger")}>💰 Earnings log</Btn>
+        <Btn onClick={() => props.go("#/vault")}>🗄 Evidence vault</Btn>
+        <Btn onClick={() => props.go("#/places")}>🏠 Safe places</Btn>
+      </div>
+
       <p className="text-center text-xs text-zinc-600">
         Everything is encrypted end-to-end. Your safety circle only sees what you share, when you share it.
       </p>

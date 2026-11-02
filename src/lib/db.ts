@@ -45,6 +45,11 @@ export interface ClientRow {
   createdAt: number;
   updatedAt: number;
   lastSeenAt: number | null;
+  // Phase 5 regulars book (optional, non-indexed)
+  regular?: boolean;
+  rebook?: "unknown" | "yes" | "no"; // permission to re-contact
+  followUps?: { thanks?: number; review?: number; recontact?: number };
+  noShows?: number;
 }
 
 export interface Outbox2Row {
@@ -56,12 +61,54 @@ export interface Outbox2Row {
   ts: number;
 }
 
+export interface LedgerRow {
+  id?: number;
+  ts: number;
+  kind: "income" | "expense" | "mileage";
+  amount: number; // money for income/expense; miles for mileage
+  category: string;
+  note: string;
+}
+
+export interface BookingRow {
+  id?: number;
+  ts: number; // start time
+  alias: string;
+  durationMin: number;
+  location: string;
+  deposit: number;
+  status: "booked" | "done" | "noshow" | "cancelled";
+  clientId?: number;
+  note: string;
+}
+
+export interface VaultRow {
+  id?: number;
+  ts: number;
+  name: string;
+  kind: string; // mime type
+  size: number;
+  blob: Blob;
+}
+
+export interface PlaceRow {
+  id?: number;
+  name: string;
+  lat: number;
+  lng: number;
+  radiusM: number;
+}
+
 class GuardianDB extends Dexie {
   outbox!: Table<OutboxRow, number>;
   trail!: Table<TrailRow, number>;
   diagnostics!: Table<DiagRow, number>;
   clients!: Table<ClientRow, number>;
   outbox2!: Table<Outbox2Row, number>;
+  ledger!: Table<LedgerRow, number>;
+  bookings!: Table<BookingRow, number>;
+  vault!: Table<VaultRow, number>;
+  places!: Table<PlaceRow, number>;
 
   constructor() {
     super("guardian-db");
@@ -77,6 +124,13 @@ class GuardianDB extends Dexie {
     // v3 (Phase 3): offline outbox for the WebSocket transport.
     this.version(3).stores({
       outbox2: "++id, sessionId, ts",
+    });
+    // v4 (Phase 5): earnings ledger, booking board, evidence vault, safe places.
+    this.version(4).stores({
+      ledger: "++id, ts, kind",
+      bookings: "++id, ts, status",
+      vault: "++id, ts",
+      places: "++id, name",
     });
   }
 }
