@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { sha256Hex } from "../lib/crypto";
+import { verifyPin } from "../lib/pin";
+import { hasPasskey, verifyPasskey, passkeySupported } from "../lib/passkey";
 import { buzz } from "../lib/audio";
 
 /** PIN pad. Duress PIN unlocks silently AND triggers a silent alert. */
@@ -19,10 +20,9 @@ export default function LockScreen(props: {
   };
 
   const submit = async () => {
-    const h = await sha256Hex(pin);
-    if (h === props.pinHash) {
+    if (await verifyPin(pin, props.pinHash)) {
       props.onUnlock(false);
-    } else if (props.duressPinHash && h === props.duressPinHash) {
+    } else if (props.duressPinHash && (await verifyPin(pin, props.duressPinHash))) {
       // Silent: behaves like a normal unlock, but flags duress upstream.
       props.onUnlock(true);
     } else {
@@ -61,6 +61,14 @@ export default function LockScreen(props: {
       <button onClick={submit} className="mt-6 w-full rounded-xl bg-emerald-500 py-3.5 font-semibold text-black">
         Unlock
       </button>
+      {passkeySupported() && hasPasskey() && (
+        <button
+          onClick={async () => { try { if (await verifyPasskey()) props.onUnlock(false); else setErr("Passkey didn't verify — PIN still works."); } catch { setErr("Passkey didn't verify — PIN still works."); } }}
+          className="mt-3 w-full rounded-xl bg-white/10 py-3.5 font-semibold text-zinc-100"
+        >
+          🖐 Unlock with fingerprint / Face ID
+        </button>
+      )}
     </div>
   );
 }

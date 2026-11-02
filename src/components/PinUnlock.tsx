@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { sha256Hex } from "../lib/crypto";
+import { verifyPin } from "../lib/pin";
+import { hasPasskey, verifyPasskey, passkeySupported } from "../lib/passkey";
 import { store } from "../lib/store";
 import { buzz, unlockAlarm } from "../lib/audio";
 
@@ -26,11 +27,10 @@ export default function PinUnlock(props: {
   };
 
   const submit = async () => {
-    const h = await sha256Hex(pin);
-    if (h === settings.pinHash) {
+    if (await verifyPin(pin, settings.pinHash)) {
       unlockAlarm();
       props.onUnlocked();
-    } else if (settings.duressPinHash && h === settings.duressPinHash) {
+    } else if (settings.duressPinHash && (await verifyPin(pin, settings.duressPinHash))) {
       // Coerced silence: looks like a normal unlock, alerts silently.
       unlockAlarm();
       try { props.onDuress?.(); } catch { /* noop */ }
@@ -70,6 +70,14 @@ export default function PinUnlock(props: {
         <button onClick={submit} disabled={pin.length < 4} className="mt-5 w-full rounded-xl bg-red-500 py-3.5 font-bold text-white disabled:opacity-40">
           Enter PIN — silence alarm
         </button>
+        {passkeySupported() && hasPasskey() && (
+          <button
+            onClick={async () => { try { if (await verifyPasskey()) { unlockAlarm(); props.onUnlocked(); } else setErr("Passkey didn't verify — alarm keeps sounding"); } catch { setErr("Passkey didn't verify — alarm keeps sounding"); } }}
+            className="mt-2.5 w-full rounded-xl bg-white/10 py-3 font-semibold text-zinc-100"
+          >
+            🖐 Silence with fingerprint / Face ID
+          </button>
+        )}
         <button onClick={props.onKeepSounding} className="mt-2.5 w-full rounded-xl bg-white/5 py-3 text-sm text-zinc-300">
           Keep it sounding
         </button>

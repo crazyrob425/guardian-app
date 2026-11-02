@@ -3,11 +3,64 @@ import { TopBar, Card, Btn, Field, inputCls } from "../components/ui";
 import { store, DEFAULT_SETTINGS, type Settings, type AlarmSoundId } from "../lib/store";
 import { ALARM_SOUNDS, alarmFileUrl } from "../lib/audio";
 import { saveCustomAlarm, loadCustomAlarm, clearCustomAlarm } from "../lib/alarmdb";
-import { sha256Hex } from "../lib/crypto";
+import { hashPin } from "../lib/pin";
 import { sendSms } from "../lib/sms";
 import { genTopic, sendPush, circleInviteText, ntfyConfigured } from "../lib/notify";
 import { shareLink, type SharePayload } from "../lib/share";
 import ShareSheet from "../components/ShareSheet";
+import { identityFingerprint } from "../lib/identity";
+import { hasPasskey, registerPasskey, removePasskey, passkeySupported } from "../lib/passkey";
+
+/** Phase 3 security extras: transport choice, identity fingerprint, passkey. */
+function SecurityExtras(props: { s: Settings; set: <K extends keyof Settings>(k: K, v: Settings[K]) => void }) {
+  const { s, set } = props;
+  const [fp, setFp] = useState("");
+  const [pk, setPk] = useState(hasPasskey());
+  const [msg, setMsg] = useState("");
+  useEffect(() => { identityFingerprint().then(setFp).catch(() => setFp("unavailable")); }, []);
+  return (
+    <>
+      <Card className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Sync transport (Protocol v2)</p>
+        <p className="text-sm text-zinc-400">Guardian Cloud runs on our own Cloudflare rooms — no public broker. Auto tries Cloud first and falls back automatically. Either way, everything stays end-to-end encrypted; the relay only sees ciphertext.</p>
+        <div className="grid grid-cols-3 gap-2">
+          {([["auto", "Auto"], ["cloud", "Cloud"], ["mqtt", "Broker"]] as const).map(([v, label]) => (
+            <button key={v} onClick={() => set("syncTransport", v)}
+              className={`rounded-xl px-2 py-2 text-sm font-semibold ${s.syncTransport === v ? "bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-400/40" : "bg-white/5 text-zinc-400"}`}>{label}</button>
+          ))}
+        </div>
+        <Field label="Guardian Cloud address">
+          <input className={inputCls} value={s.cloudSyncUrl} onChange={(e) => set("cloudSyncUrl", e.target.value)} />
+        </Field>
+      </Card>
+
+      <Card className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Your Guardian identity</p>
+        <p className="font-mono text-sm text-emerald-300">{fp || "…"}</p>
+        <p className="text-sm text-zinc-400">This device's cryptographic identity (X25519, generated here, never uploaded). It's the foundation for sealed session-key delivery to your circle's devices — and it proves this phone is really yours.</p>
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Passkey unlock</p>
+        {pk ? (
+          <>
+            <p className="text-sm text-zinc-300">✅ A passkey is registered on this device — you can unlock with fingerprint / Face ID instead of typing your PIN. Your PIN still works too.</p>
+            <Btn onClick={() => { removePasskey(); setPk(false); setMsg("Passkey removed from this device."); }}>Remove passkey</Btn>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-zinc-400">Add a passkey to unlock Guardian with your fingerprint or Face ID. Verified entirely on this device — no account, no server. {passkeySupported() ? "" : "This browser doesn't support passkeys."}</p>
+            <Btn variant="primary" disabled={!passkeySupported()} onClick={async () => {
+              try { await registerPasskey(); setPk(true); setMsg("Passkey registered — try it on the lock screen."); }
+              catch (e) { setMsg(e instanceof Error ? e.message : "Registration failed."); }
+            }}>Register a passkey</Btn>
+          </>
+        )}
+        {msg && <p className="text-sm text-emerald-300">{msg}</p>}
+      </Card>
+    </>
+  );
+}
 
 export default function SettingsScreen(props: { onBack: () => void; onChanged: () => void }) {
   const [s, setS] = useState<Settings>(store.getSettings());
@@ -99,7 +152,7 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
       return;
     }
     if (v.length < 4) { setSaved("PIN must be 4+ digits."); setTimeout(() => setSaved(""), 2000); return; }
-    const next = { ...s, [kind]: await sha256Hex(v) };
+    const next = { ...s, [kind]: await hashPin(v) };
     setS(next);
     store.saveSettings(next);
     props.onChanged();
@@ -164,6 +217,8 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
             </button>
           </label>
         </Card>
+
+        <SecurityExtras s={s} set={set} />
 
         <Card className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Lock screen</p>

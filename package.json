@@ -3,6 +3,7 @@
     "dexie": "^4.4.7",
     "leaflet": "^1.9.4",
     "libphonenumber-js": "^1.13.15",
+    "libsodium-wrappers-sumo": "^0.8.4",
     "mqtt": "^5.10.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -30,5 +31,5 @@
     "test": "vitest run"
   },
   "type": "module",
-  "version": "0.6.0"
+  "version": "0.7.1"
 }

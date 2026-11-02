@@ -73,7 +73,7 @@ export interface SyncHandle {
 
 const PREFIX = "guardian/v1";
 
-export async function connectSession(opts: {
+async function connectMqttSession(opts: {
   broker: string;
   sessionId: string;
   key: CryptoKey;
@@ -172,6 +172,40 @@ export async function connectSession(opts: {
     close() { try { client.end(true); } catch { /* noop */ } },
     connected: () => client.connected,
   };
+}
+
+/**
+ * Transport facade (Phase 3). Default "auto": Guardian Cloud (our own
+ * WebSocket rooms) first, with automatic fallback to the classic public
+ * MQTT broker if the cloud is unreachable. Settings can pin either one.
+ * The watch/client link pages always use cloud-first too — the session key
+ * in their link works identically on both transports.
+ */
+export async function connectSession(opts: {
+  broker: string;
+  sessionId: string;
+  key: CryptoKey;
+  subscribe?: TopicKind[];
+}): Promise<SyncHandle> {
+  let pref: string = "auto";
+  let cloudUrl = "wss://guardian-sync.blacklisted.studio";
+  try {
+    const { store } = await import("./store");
+    const s = store.getSettings();
+    pref = s.syncTransport || "auto";
+    if (s.cloudSyncUrl) cloudUrl = s.cloudSyncUrl;
+  } catch { /* defaults apply */ }
+
+  if (pref !== "mqtt") {
+    try {
+      const { connectCloudSession } = await import("./sync2");
+      return await connectCloudSession({ cloudUrl, sessionId: opts.sessionId, key: opts.key, subscribe: opts.subscribe });
+    } catch (e) {
+      if (pref === "cloud") throw e;
+      // auto: fall through to the classic broker
+    }
+  }
+  return connectMqttSession(opts);
 }
 
 /** Share-link builders. Key stays in the URL fragment (never sent to any server). */

@@ -47,11 +47,21 @@ export interface ClientRow {
   lastSeenAt: number | null;
 }
 
+export interface Outbox2Row {
+  id?: number;
+  sessionId: string;
+  kind: string; // sync topic kind (pos/alert/state/presence/signal)
+  payload: string; // already-encrypted payload
+  retain: boolean;
+  ts: number;
+}
+
 class GuardianDB extends Dexie {
   outbox!: Table<OutboxRow, number>;
   trail!: Table<TrailRow, number>;
   diagnostics!: Table<DiagRow, number>;
   clients!: Table<ClientRow, number>;
+  outbox2!: Table<Outbox2Row, number>;
 
   constructor() {
     super("guardian-db");
@@ -63,6 +73,10 @@ class GuardianDB extends Dexie {
     // v2 (Phase 2): the private client log — on-device only, never synced.
     this.version(2).stores({
       clients: "++id, phoneE164, name, updatedAt",
+    });
+    // v3 (Phase 3): offline outbox for the WebSocket transport.
+    this.version(3).stores({
+      outbox2: "++id, sessionId, ts",
     });
   }
 }

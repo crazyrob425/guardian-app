@@ -29,6 +29,8 @@ export interface Settings {
   checkOutGraceMin: number;
   arrivalRadiusM: number;
   fakeCallerName: string; // who the fake rescue call pretends to be from
+  syncTransport: "auto" | "cloud" | "mqtt"; // Phase 3 protocol v2 transport
+  cloudSyncUrl: string; // wss:// base of the Guardian Cloud sync worker
 }
 
 export interface ActiveSession {
@@ -67,6 +69,8 @@ export const DEFAULT_SETTINGS: Settings = {
   checkOutGraceMin: 5,
   arrivalRadiusM: 150,
   fakeCallerName: "Mom",
+  syncTransport: "auto",
+  cloudSyncUrl: "wss://guardian-sync.blacklisted.studio",
 };
 
 function read<T>(key: string, fallback: T): T {

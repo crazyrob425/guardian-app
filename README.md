@@ -170,3 +170,25 @@ Private project. All rights reserved.
   **Screenshot OCR:** tesseract.js lazy-loads from CDN and extracts phone/email from a
   screenshot entirely in the browser (image never uploads), with confirm-before-save.
 - Tests: 18/18 (geo, kalman, filters, cadence, phone/email intel, OCR extraction).
+
+## v0.7.0 — Phase 3: Protocol v2 (2026-11-01)
+- **Guardian Cloud transport:** realtime sync moved to our own Cloudflare Worker + Durable
+  Object rooms (`guardian-sync.blacklisted.studio`, source in `worker-sync/`) — the public
+  MQTT broker is now only an automatic fallback (Settings → Sync transport: Auto/Cloud/Broker).
+  The relay forwards AES-GCM ciphertext only, replays the last retained state/pos to late
+  joiners, caps rooms at 8 connections, and logs nothing. Same SyncHandle contract, heartbeat
+  liveness, reconnect backoff, and a Dexie offline outbox for the WS path.
+- **Argon2id PINs** (libsodium-sumo `crypto_pwhash_str`): new PINs are memory-hard hashed;
+  legacy SHA-256 PINs still verify and migrate when re-set. Verified by unit tests.
+- **Device identity:** an X25519 keypair generated on-device (never uploaded) with a
+  BLAKE2b fingerprint in Settings — the foundation for sealed-box session-key delivery to
+  paired circle devices; `sealTo`/`openSealed` primitives shipped in `src/lib/identity.ts`.
+- **Passkeys as a local unlock factor:** register in Settings; unlock (and silence a locked
+  panic alarm) with fingerprint/Face ID. Assertions are verified entirely on-device with
+  WebCrypto — Guardian still has no accounts and no server. The PIN always remains available.
+  (Hand-rolled CBOR attestation parsing + DER→raw signature conversion, unit-tested.)
+- **LiveKit — deliberately deferred:** hosted LiveKit needs a third-party account + server-side
+  token minting, and self-hosting breaks the $0 rule; meanwhile the WebRTC emergency A/V
+  signaling now rides our own rooms instead of the public broker, which was the actual
+  privacy/stability goal. Revisit if a LiveKit Cloud account is ever provisioned.
+- Tests: 23/23.
