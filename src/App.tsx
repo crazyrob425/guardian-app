@@ -15,6 +15,8 @@ import LedgerScreen from "./screens/LedgerScreen";
 import BookingsScreen from "./screens/BookingsScreen";
 import VaultScreen from "./screens/VaultScreen";
 import PlacesScreen from "./screens/PlacesScreen";
+import SetupWizard from "./screens/SetupWizard";
+import { getSetup } from "./lib/setup";
 import FakeCall from "./components/FakeCall";
 import { fakeCallDue, clearFakeCall } from "./lib/fakecall";
 import { ErrorBoundary } from "react-error-boundary";
@@ -34,6 +36,7 @@ type Route =
   | { name: "circle" } | { name: "payments" } | { name: "settings" }
   | { name: "clients" }
   | { name: "ledger" } | { name: "bookings" } | { name: "vault" } | { name: "places" }
+  | { name: "setup" }
   | { name: "client"; id: string; k: string }
   | { name: "watch"; id: string; k: string };
 
@@ -56,6 +59,7 @@ function parseHash(): Route {
     case "bookings": return { name: "bookings" };
     case "vault": return { name: "vault" };
     case "places": return { name: "places" };
+    case "setup": return { name: "setup" };
     default: return { name: "home" };
   }
 }
@@ -142,6 +146,14 @@ export default function App() {
 
   const discreet = settings.discreetMode;
   const needsLock = (route.name !== "client" && route.name !== "watch") && !!settings.pinHash && !unlocked;
+
+  // Phase 6 first-run gate: until Sis has walked her through setup, Home IS
+  // the wizard. Guests (watch/client links) never see this.
+  useEffect(() => {
+    if (unlocked && route.name === "home" && !getSetup().done && !store.getSession()) {
+      go("#/setup");
+    }
+  }, [unlocked, route.name]);
 
   /** Silent duress unlock: looks normal, alerts the circle in the background. */
   const handleUnlock = async (duress: boolean) => {
@@ -231,6 +243,9 @@ export default function App() {
       break;
     case "places":
       screen = <PlacesScreen onBack={back} />;
+      break;
+    case "setup":
+      screen = <SetupWizard go={go} onDone={refresh} />;
       break;
     case "settings":
       screen = <SettingsScreen onBack={back} onChanged={refresh} />;

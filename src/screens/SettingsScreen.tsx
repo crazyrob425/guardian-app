@@ -13,6 +13,7 @@ import i18n from "../lib/i18n";
 import { resetTour } from "../lib/tour";
 import { hasPasskey, registerPasskey, removePasskey, passkeySupported } from "../lib/passkey";
 import { PERSONAS, getPersona } from "../lib/personas";
+import { accountsConfigured, currentEmail, fetchMyPlan, sendMagicLink, signOut, type MyPlan } from "../lib/account";
 
 function DecoyPinRow(props: { s: Settings; set: <K extends keyof Settings>(k: K, v: Settings[K]) => void }) {
   const [pin, setPin] = useState("");
@@ -35,6 +36,55 @@ function DecoyPinRow(props: { s: Settings; set: <K extends keyof Settings>(k: K,
       {note && <p className="mt-2 text-sm text-emerald-300">{note}</p>}
       {props.s.decoyPinHash && <p className="mt-1 text-xs text-zinc-500">Decoy PIN is active.</p>}
     </div>
+  );
+}
+
+function AccountCard() {
+  const [email, setEmail] = useState<string | null>(null);
+  const [plan, setPlan] = useState<MyPlan | null>(null);
+  const [addr, setAddr] = useState("");
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    void currentEmail().then(async (e) => {
+      setEmail(e);
+      if (e) setPlan(await fetchMyPlan());
+    });
+  }, []);
+
+  if (!accountsConfigured) {
+    return (
+      <Card className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Your Guardian account</p>
+        <p className="text-sm text-zinc-400">Accounts open with the Pro launch — during beta, everything is free and nothing is locked. Beta testers: your free Pro year is claimed with the email you test with. 💅</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="space-y-3">
+      <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Your Guardian account</p>
+      {email ? (
+        <>
+          <p className="text-sm text-zinc-200">Signed in as <strong>{email}</strong></p>
+          <p className="text-sm text-zinc-400">
+            Plan: <span className="font-bold text-pink-300">{plan?.plan === "pro" ? "Pro ✨" : plan?.plan === "beta" ? "Beta — everything free" : "Free"}</span>
+            {plan?.proSource === "beta_grant" && plan.proExpiresAt ? ` · beta grant through ${new Date(plan.proExpiresAt).toLocaleDateString()}` : ""}
+          </p>
+          <p className="text-xs text-zinc-600">Your account holds only your email + plan. Locations, clients and money never leave this phone.</p>
+          <Btn onClick={async () => { await signOut(); setEmail(null); setPlan(null); }}>Sign out</Btn>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-zinc-400">Sign in with a magic link — no password to remember or leak. Beta testers get a free year of Pro at launch, claimed to this email.</p>
+          <div className="flex gap-2">
+            <input className={inputCls} value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="you@email.com" inputMode="email" />
+            <button onClick={async () => { const r = await sendMagicLink(addr.trim()); setMsg(r.ok ? "✓ Magic link sent — check your email." : (r.error ?? "Failed.")); }} className="shrink-0 rounded-xl bg-white/10 px-4 text-sm text-zinc-100">Send link</button>
+          </div>
+          {msg && <p className="text-sm text-emerald-300">{msg}</p>}
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -303,6 +353,8 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
             </button>
           </label>
         </Card>
+
+        <AccountCard />
 
         <SecurityExtras s={s} set={set} />
 
