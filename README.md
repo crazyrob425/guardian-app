@@ -11,7 +11,7 @@ built to a standard the billion-dollar apps never bothered to reach, because the
 
 <br/>
 
-[![Version](https://img.shields.io/badge/version-v0.11.1-0a0a0f?style=for-the-badge&labelColor=111111&color=d4af37)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.11.2-0a0a0f?style=for-the-badge&labelColor=111111&color=d4af37)](CHANGELOG.md)
 [![Status](https://img.shields.io/badge/status-LIVE_%26_IN_BETA-0a0a0f?style=for-the-badge&labelColor=111111&color=2ea043)](https://guardian-app.blacklisted.studio)
 [![PWA](https://img.shields.io/badge/PWA-installable-0a0a0f?style=for-the-badge&logo=pwa&logoColor=white&labelColor=111111&color=5a0fc8)](https://guardian-app.blacklisted.studio)
 [![Price](https://img.shields.io/badge/price-FREE_during_beta-0a0a0f?style=for-the-badge&labelColor=111111&color=ff69b4)](https://blacklisted.studio)

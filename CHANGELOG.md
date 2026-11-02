@@ -4,6 +4,22 @@ The full engineering log: every version, what shipped, what broke, what we
 learned. The polished story lives in [README.md](README.md); this is the
 grease under the fingernails.
 
+## v0.11.2 — Honest Texting (2026-11-02)
+- **Bug found by Rob on a real phone test:** the session screen's "Text circle"
+  button reported *"Watch link texted to 2 people"* while running in demo mode
+  (no SMS relay configured) — no texts existed. A safety app does not get to
+  round "demo" up to "sent." Fixed at the root:
+  - With a relay configured, the feed reports the real sent/failed counts.
+  - With **no relay**, the button now opens the user's own Messages app with
+    the watch-link text prefilled to the whole circle (`sms:` composer) —
+    free, from her own number, one tap on Send. Feed says exactly that.
+  - No phone numbers in the circle → falls back to the share sheet, and the
+    feed says so.
+- Field note: the same test surfaced a phone still running a pre-v0.8.2 cached
+  build (old CARTO tile watermark — production has shipped OSM tiles since
+  v0.7.1/v0.8.2, verified in the live bundle). Closing the tab fully and
+  reopening pulls the current build via the service-worker update check.
+
 ## v0.5.0 — Phase 1: GPS Reliability Pack (2026-11-01)
 - **Tracking engine** (`src/lib/tracking.ts`): Traccar-style filter chain — accuracy gate
   (>65 m rejected, coarse accepted only when stale), teleport/outlier rejection, Kalman

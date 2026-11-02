@@ -363,10 +363,30 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const textCircle = async () => {
     const s = sessionRef.current!;
     const link = watchLink(window.location.origin, s.id, s.keyB64);
-    const results = await alertCircle(settings, circle, `Guardian: live ${L.date} view for ${settings.displayName || "your contact"}: ${link}`);
-    const failed = results.filter((r) => !r.result.ok);
-    pushFeed(failed.length ? `${failed.length} text(s) failed — link copied, send manually.` : `Watch link texted to ${results.length} ${results.length === 1 ? "person" : "people"}.`, failed.length ? "warn" : "info");
-    if (failed.length) copy(link, "watch");
+    const body = `Guardian: live ${L.date} view for ${settings.displayName || "your contact"}: ${link}`;
+    // Relay configured: texts really go out — report exactly what happened.
+    if (settings.twilioWorkerUrl) {
+      const results = await alertCircle(settings, circle, body);
+      const failed = results.filter((r) => !r.result.ok);
+      const sent = results.filter((r) => r.result.ok && !r.result.demo).length;
+      pushFeed(failed.length ? `${failed.length} text(s) failed — link copied, send manually.` : `Watch link texted to ${sent} ${sent === 1 ? "person" : "people"}.`, failed.length ? "warn" : "info");
+      if (failed.length) copy(link, "watch");
+      return;
+    }
+    // No relay: a browser cannot send carrier texts by itself, so DON'T fake
+    // it — open the user's own Messages app with the text prefilled to the
+    // whole circle (free, from her own number). One tap on Send and it's real.
+    const phones = circle.map((m) => m.phone?.trim()).filter(Boolean) as string[];
+    if (phones.length) {
+      pushFeed(`Opening your Messages app — tap Send to text ${phones.length} ${phones.length === 1 ? "person" : "people"} (free — your own number, no relay needed).`, "info");
+      copy(link, "watch");
+      window.setTimeout(() => {
+        window.location.href = `sms:${phones.join(",")}?body=${encodeURIComponent(body)}`;
+      }, 700);
+    } else {
+      pushFeed("No phone numbers saved in your circle — sharing the link instead.", "warn");
+      shareWatch();
+    }
   };
 
   const markers: MapMarker[] = [];
