@@ -114,14 +114,12 @@ unlocks (that pattern is itself a policy violation; see §2.3).
 
 ## 2. Distribution flavors
 
-> ### ⚠ DECISION PENDING — Rob
-> The two-flavor split below is the **recommended** shape — it is the
-> only shape the primary-source policy research supports — but the
-> Play/direct split is a product decision with real costs (§2.4), and
-> it is Rob's call. Nothing in §7.1 (the Capacitor prototype) depends
-> on it; flavor wiring lands in §7.4. If Rob rejects the split, the
-> fallback is direct-APK-only distribution and this section is rewritten
-> before any Play submission is prepared.
+> ### ✅ DECIDED — Rob, 2026-11-02 ~03:48 PST: DUAL-FLAVOR
+> Rob approved the two-flavor split below: **Play = generic, direct
+> APK = full Entertainment pack.** It is the only shape the
+> primary-source policy research supports, and it is now the locked
+> distribution plan. Nothing in §7.1 (the Capacitor prototype) depends
+> on it; flavor wiring lands in §7.4.
 
 ### 2.1 Why flavors exist at all
 
