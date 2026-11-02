@@ -154,6 +154,9 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
           <Field label="Display name (used in alerts to your circle)">
             <input className={inputCls} value={s.displayName} onChange={(e) => set("displayName", e.target.value)} placeholder="e.g. Alex" />
           </Field>
+          <Field label="Fake rescue call — caller name (who the call pretends to be from)">
+            <input className={inputCls} value={s.fakeCallerName} onChange={(e) => set("fakeCallerName", e.target.value)} placeholder="e.g. Mom" />
+          </Field>
           <label className="flex items-center justify-between">
             <span className="text-sm text-zinc-200">Discreet mode <span className="text-zinc-500">(neutral wording everywhere)</span></span>
             <button onClick={() => set("discreetMode", !s.discreetMode)} className={`relative h-8 w-14 rounded-full ${s.discreetMode ? "bg-emerald-500" : "bg-white/10"}`}>

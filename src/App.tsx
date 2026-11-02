@@ -8,6 +8,9 @@ import ClientScreen from "./screens/ClientScreen";
 import WatchScreen from "./screens/WatchScreen";
 import PaymentsScreen from "./screens/PaymentsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
+import ClientsScreen from "./screens/ClientsScreen";
+import FakeCall from "./components/FakeCall";
+import { fakeCallDue, clearFakeCall } from "./lib/fakecall";
 import { ErrorBoundary } from "react-error-boundary";
 import { store, type ActiveSession } from "./lib/store";
 import { logDiagnostic } from "./lib/db";
@@ -23,6 +26,7 @@ import ShareSheet from "./components/ShareSheet";
 type Route =
   | { name: "home" } | { name: "date" } | { name: "session" }
   | { name: "circle" } | { name: "payments" } | { name: "settings" }
+  | { name: "clients" }
   | { name: "client"; id: string; k: string }
   | { name: "watch"; id: string; k: string };
 
@@ -40,6 +44,7 @@ function parseHash(): Route {
     case "circle": return { name: "circle" };
     case "payments": return { name: "payments" };
     case "settings": return { name: "settings" };
+    case "clients": return { name: "clients" };
     default: return { name: "home" };
   }
 }
@@ -56,6 +61,15 @@ export default function App() {
   const [sos, setSos] = useState<{ watchUrl: string; count: number } | null>(null);
   const [pinUnlockOpen, setPinUnlockOpen] = useState(false);
   const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
+  const [fakeRinging, setFakeRinging] = useState(false);
+
+  // Fake rescue call host: fires the scheduled call from any screen.
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      if (!fakeRinging && fakeCallDue()) setFakeRinging(true);
+    }, 2000);
+    return () => window.clearInterval(t);
+  }, [fakeRinging]);
 
   useEffect(() => {
     const onHash = () => {
@@ -137,6 +151,9 @@ export default function App() {
     case "circle":
       screen = <CircleScreen onBack={back} />;
       break;
+    case "clients":
+      screen = <ClientsScreen onBack={back} />;
+      break;
     case "payments":
       screen = <PaymentsScreen onBack={back} />;
       break;
@@ -169,6 +186,12 @@ export default function App() {
           onUnlocked={() => { setPinUnlockOpen(false); stopSiren(); setSos(null); }}
           onDuress={() => { void handleUnlock(true); }}
           onKeepSounding={() => setPinUnlockOpen(false)}
+        />
+      )}
+      {fakeRinging && (
+        <FakeCall
+          callerName={settings.fakeCallerName || "Mom"}
+          onDone={() => { clearFakeCall(); setFakeRinging(false); }}
         />
       )}
       <ErrorBoundary

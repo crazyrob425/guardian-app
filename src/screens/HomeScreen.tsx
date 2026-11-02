@@ -4,6 +4,7 @@ import { Card, Btn } from "../components/ui";
 import { getLabels } from "../lib/labels";
 import { store, type ActiveSession } from "../lib/store";
 import { startSiren, stopSiren, isSirenOn, buzz } from "../lib/audio";
+import { scheduleFakeCall, pendingFakeCall, clearFakeCall } from "../lib/fakecall";
 
 export default function HomeScreen(props: {
   discreet: boolean;
@@ -13,6 +14,8 @@ export default function HomeScreen(props: {
 }) {
   const L = getLabels(props.discreet);
   const [sirenOn, setSirenOn] = useState(isSirenOn());
+  const [fakeMenu, setFakeMenu] = useState(false);
+  const [fakePlanned, setFakePlanned] = useState(pendingFakeCall()?.at ?? null);
   const settings = store.getSettings();
 
   useEffect(() => {
@@ -59,10 +62,33 @@ export default function HomeScreen(props: {
         <Btn variant="primary" onClick={() => props.go("#/date")}>Start {L.date}</Btn>
         <Btn onClick={() => props.go("#/payments")}>Payments</Btn>
         <Btn onClick={() => props.go("#/circle")}>Safety circle</Btn>
+        <Btn onClick={() => props.go("#/clients")}>{L.Client} log</Btn>
+        <Btn onClick={() => setFakeMenu((v) => !v)}>📞 Fake rescue call</Btn>
         <Btn onClick={() => { if (sirenOn) { const stopped = stopSiren(); if (stopped) setSirenOn(false); } else { startSiren(); setSirenOn(true); } }}>
           {sirenOn ? "Stop alarm" : "Test alarm"}
         </Btn>
       </div>
+
+      {fakeMenu && (
+        <Card>
+          <p className="mb-1 text-sm font-semibold text-zinc-200">Fake rescue call</p>
+          <p className="mb-3 text-xs text-zinc-500">A realistic incoming call from “{settings.fakeCallerName || "Mom"}” — answer it, play along, and leave. Set the caller name in Settings.</p>
+          {fakePlanned && fakePlanned > Date.now() ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-emerald-300">📞 Call scheduled for {new Date(fakePlanned).toLocaleTimeString()}.</p>
+              <Btn className="!w-auto !px-4" onClick={() => { clearFakeCall(); setFakePlanned(null); }}>Cancel</Btn>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {[0, 5, 10].map((m) => (
+                <Btn key={m} onClick={() => { const p = scheduleFakeCall(m); setFakePlanned(p.at); setFakeMenu(false); }}>
+                  {m === 0 ? "Call now" : `In ${m} min`}
+                </Btn>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       <p className="text-center text-xs text-zinc-600">
         Everything is encrypted end-to-end. Your safety circle only sees what you share, when you share it.

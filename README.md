@@ -149,3 +149,24 @@ Private project. All rights reserved.
   interrupted" warning after 45 s of silence**, guest distance + ETA at current pace.
 - **Crash-proofing:** every screen sits behind an error boundary — a failure in one screen
   shows a calm fallback; the SOS banner and any sounding alarm live outside the boundary.
+
+## v0.6.0 — Phase 2: Trust Pack + Screening + Client Log (2026-11-01)
+- **Confirmation ladder:** watchers acknowledge emergencies from the watch page — "I see it",
+  "I'm on my way", "Called help" — and she sees each step live in her session feed. An
+  emergency with NO acknowledgment inside 3 minutes re-fires push + SMS automatically
+  (silence escalates).
+- **Presence:** watch pages heartbeat every 20 s; her session shows "👁 Watching now: …".
+- **She's Safe ✅:** the watch page persists a big safe status after check-out.
+- **Address in alerts:** panic/missed-checkout alerts carry a locality-level street address
+  (free keyless reverse geocode, best-effort) in the sync alert, the SMS, and the watch feed.
+- **Coded quick messages:** 🍕 I'm OK · 📞 Call me · 🚗 Come get me (escalates the watch
+  page) · 💬 Need to talk — one tap from the session screen.
+- **Fake rescue call:** schedule from Home (now / 5 / 10 min) — full-screen incoming call,
+  looped ringtone, scripted voice on answer; caller name configurable in Settings.
+- **Private client log (new screen):** on-device only (Dexie), never synced or uploaded.
+  Screening pack: libphonenumber-js number intel (validity, country, line type — VoIP and
+  toll-free flagged as hints), disposable-email detection against the full 10,115-domain
+  upstream snapshot, the standard 6-point screening checklist, verdicts, notes, search.
+  **Screenshot OCR:** tesseract.js lazy-loads from CDN and extracts phone/email from a
+  screenshot entirely in the browser (image never uploads), with confirm-before-save.
+- Tests: 18/18 (geo, kalman, filters, cadence, phone/email intel, OCR extraction).

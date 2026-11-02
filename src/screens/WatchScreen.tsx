@@ -15,6 +15,8 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
   const [providerMeta, setProviderMeta] = useState<{ ts: number; bat: number | null; acc?: number; seq?: number } | null>(null);
   const [clientMeta, setClientMeta] = useState<{ spd: number | null } | null>(null);
   const [tick, setTick] = useState(Date.now());
+  const [myName, setMyName] = useState(() => { try { return localStorage.getItem("guardian.watcherName") || ""; } catch { return ""; } });
+  const [myAck, setMyAck] = useState<string | null>(null);
   const [state, setState] = useState<StateMsg | null>(null);
   const [alerts, setAlerts] = useState<AlertMsg[]>([]);
   const [watching, setWatching] = useState(false);
@@ -22,6 +24,7 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
   const [err, setErr] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const stopWatch = useRef<(() => void) | null>(null);
+  const stopBeat = useRef<(() => void) | null>(null);
   const syncRef = useRef<SyncHandle | null>(null);
   const wakeLock = useRef<{ release: () => void } | null>(null);
 
@@ -77,13 +80,22 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
         sync.onAlert((m) => {
           setAlerts((a) => [m, ...a].slice(0, 20));
           if (m.type === "panic" || m.type === "duress" || m.type === "missed-checkout") escalateLocal(m);
+          if (m.type === "coded" && m.note === "pickup") escalateLocal(m);
+          if (m.type === "checkout") setMyAck(null);
         });
+        // Presence heartbeat: she can see that someone is watching.
+        const beat = () => {
+          sync.publish("presence", { name: (localStorage.getItem("guardian.watcherName") || "A friend"), ts: Date.now() }, false).catch(() => {});
+        };
+        beat();
+        const beatTimer = window.setInterval(beat, 20000);
+        stopBeat.current = () => window.clearInterval(beatTimer);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Connection failed");
       }
     })();
     const t = window.setInterval(() => setTick(Date.now()), 5000);
-    return () => { dead = true; window.clearInterval(t); stopWatch.current?.(); syncRef.current?.close(); try { wakeLock.current?.release(); } catch { /* noop */ } };
+    return () => { dead = true; window.clearInterval(t); stopBeat.current?.(); stopWatch.current?.(); syncRef.current?.close(); try { wakeLock.current?.release(); } catch { /* noop */ } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -109,6 +121,15 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
     }
   };
 
+  /** Confirmation ladder: tell her a human has seen it — and what you're doing. */
+  const sendAck = async (kind: "seen" | "onmyway" | "called-help") => {
+    const sync = syncRef.current;
+    if (!sync) return;
+    const name = myName.trim() || "A friend";
+    await sync.publish("alert", { type: "ack", ts: Date.now(), note: kind, by: name }, false).catch(() => {});
+    setMyAck(kind);
+  };
+
   const markers: MapMarker[] = [];
   if (providerPos) markers.push({ id: "p", pos: providerPos, color: "#34d399", label: "Them" });
   if (clientPos) markers.push({ id: "c", pos: clientPos, color: "#60a5fa", label: "Guest" });
@@ -127,12 +148,35 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
           </Card>
         )}
         {alertsOn && <p className="text-center text-xs text-emerald-300">🔔 Loud alerts ON — keep this page open.</p>}
+        {state?.state === "done" && (
+          <Card className="border-emerald-500/50 bg-emerald-500/10 text-center">
+            <p className="text-2xl font-black text-emerald-300">She's Safe ✅</p>
+            <p className="mt-1 text-sm text-emerald-200/80">Checked out{alerts.find((a) => a.type === "checkout") ? ` at ${new Date(alerts.find((a) => a.type === "checkout")!.ts).toLocaleTimeString()}` : ""}. You can close this page — thank you for watching over her.</p>
+          </Card>
+        )}
         {emergency && (
           <Card className="border-red-500/50 bg-red-500/10">
             <p className="text-center text-lg font-black uppercase tracking-widest text-red-400">Emergency signal active</p>
             <p className="mt-1 text-center text-sm text-red-200/80">If you can't reach them, consider contacting local emergency services with the location below.</p>
+            <p className="mt-3 text-center text-xs uppercase tracking-widest text-red-300/70">Let her know a human is responding</p>
+            {myAck ? (
+              <p className="mt-2 text-center text-sm font-semibold text-emerald-300">
+                {myAck === "onmyway" ? "🚗 You told her you're on your way." : myAck === "called-help" ? "📞 You told her help has been called." : "👁 You acknowledged the alert."}
+              </p>
+            ) : (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <Btn onClick={() => void sendAck("seen")}>👁 I see it</Btn>
+                <Btn variant="primary" onClick={() => void sendAck("onmyway")}>🚗 On my way</Btn>
+                <Btn onClick={() => void sendAck("called-help")}>📞 Called help</Btn>
+              </div>
+            )}
           </Card>
         )}
+        <Card>
+          <label className="mb-1 block text-xs uppercase tracking-widest text-zinc-500">Your name (she'll see who's watching & responding)</label>
+          <input value={myName} onChange={(e) => { setMyName(e.target.value); try { localStorage.setItem("guardian.watcherName", e.target.value); } catch { /* noop */ } }}
+            placeholder="e.g. Maria" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600" />
+        </Card>
         <Card>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs uppercase tracking-widest text-zinc-500">Status</span>
@@ -181,11 +225,21 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
           <Card>
             <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">Alerts</p>
             <ul className="space-y-1.5">
-              {alerts.map((a, i) => (
-                <li key={i} className={`text-sm ${["panic", "duress", "missed-checkout"].includes(a.type) ? "text-red-300 font-semibold" : "text-zinc-400"}`}>
-                  <span className="mr-2 text-xs text-zinc-600">{new Date(a.ts).toLocaleTimeString()}</span>{a.type}{a.note ? ` — ${a.note}` : ""}
-                </li>
-              ))}
+              {alerts.map((a, i) => {
+                const label =
+                  a.type === "coded" && a.note === "pickup" ? "🚗 COME GET ME — she asked for a pickup" :
+                  a.type === "coded" && a.note === "call" ? "📞 She asked you to call her" :
+                  a.type === "coded" && a.note === "talk" ? "💬 She needs to talk" :
+                  a.type === "ack" ? `👁 ${a.by || "A watcher"} acknowledged (${a.note})` :
+                  a.type === "checkin" ? `✅ Check-in${a.note ? ` — ${a.note}` : ""}` :
+                  a.type === "checkout" ? "✅ Checked out — safe" :
+                  `${a.type}${a.note ? ` — ${a.note}` : ""}`;
+                return (
+                  <li key={i} className={`text-sm ${["panic", "duress", "missed-checkout"].includes(a.type) || (a.type === "coded" && a.note === "pickup") ? "text-red-300 font-semibold" : "text-zinc-400"}`}>
+                    <span className="mr-2 text-xs text-zinc-600">{new Date(a.ts).toLocaleTimeString()}</span>{label}{a.addr ? <span className="block text-xs text-zinc-500">{a.addr}</span> : null}
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         )}

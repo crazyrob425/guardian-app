@@ -90,3 +90,27 @@ export function formatEta(sec: number): string {
   if (sec < 90) return "≈1 min";
   return `≈${Math.round(sec / 60)} min`;
 }
+
+/**
+ * Best-effort human-readable street address for a position (Phase 2:
+ * address-in-alerts). Uses BigDataCloud's free keyless client API; returns
+ * null on any failure — an alert must never wait on a geocoder.
+ */
+export async function reverseGeocode(p: LatLng): Promise<string | null> {
+  try {
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 4000);
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.lat}&longitude=${p.lng}&localityLanguage=en`,
+      { signal: ctl.signal }
+    );
+    clearTimeout(to);
+    if (!res.ok) return null;
+    const j = (await res.json()) as { locality?: string; city?: string; principalSubdivision?: string; plusCode?: string };
+    const parts = [j.locality, j.city, j.principalSubdivision].filter(Boolean);
+    const uniq = parts.filter((v, i) => parts.indexOf(v) === i);
+    return uniq.length ? `near ${uniq.join(", ")}` : null;
+  } catch {
+    return null;
+  }
+}

@@ -28,6 +28,7 @@ export interface Settings {
   defaultCurrency: string;
   checkOutGraceMin: number;
   arrivalRadiusM: number;
+  fakeCallerName: string; // who the fake rescue call pretends to be from
 }
 
 export interface ActiveSession {
@@ -65,6 +66,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultCurrency: "USD",
   checkOutGraceMin: 5,
   arrivalRadiusM: 150,
+  fakeCallerName: "Mom",
 };
 
 function read<T>(key: string, fallback: T): T {

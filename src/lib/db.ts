@@ -29,10 +29,29 @@ export interface DiagRow {
   where: string;
 }
 
+export type ClientVerdict = "ok" | "caution" | "avoid" | "unknown";
+
+export interface ClientRow {
+  id?: number;
+  name: string;
+  phone: string; // as entered
+  phoneE164: string; // canonical form for matching ("" when unparseable)
+  email: string;
+  handle: string; // site/app username they booked under
+  verdict: ClientVerdict;
+  flags: string[]; // screening hints: "VoIP number", "burner email", ...
+  checks: Record<string, boolean>; // screening checklist state
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+  lastSeenAt: number | null;
+}
+
 class GuardianDB extends Dexie {
   outbox!: Table<OutboxRow, number>;
   trail!: Table<TrailRow, number>;
   diagnostics!: Table<DiagRow, number>;
+  clients!: Table<ClientRow, number>;
 
   constructor() {
     super("guardian-db");
@@ -40,6 +59,10 @@ class GuardianDB extends Dexie {
       outbox: "++id, sessionId, ts",
       trail: "++id, sessionId, ts",
       diagnostics: "++id, ts",
+    });
+    // v2 (Phase 2): the private client log — on-device only, never synced.
+    this.version(2).stores({
+      clients: "++id, phoneE164, name, updatedAt",
     });
   }
 }

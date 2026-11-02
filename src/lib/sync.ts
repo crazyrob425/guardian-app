@@ -8,13 +8,25 @@ import { encrypt, decrypt } from "./crypto";
 import { db } from "./db";
 import type { LatLng } from "./geo";
 
-export type AlertType = "panic" | "duress" | "missed-checkout" | "checkin" | "checkout" | "arriving" | "arrived";
+export type AlertType =
+  | "panic" | "duress" | "missed-checkout" | "checkin" | "checkout" | "arriving" | "arrived"
+  // Phase 2 (Trust Pack)
+  | "ack" // a watcher acknowledging an alert; note = "seen" | "onmyway" | "called-help", addr/name in `by`
+  | "coded"; // discreet coded quick message; note = code id (pizza/call/pickup/talk)
 
 export interface AlertMsg {
   type: AlertType;
   ts: number;
   pos?: LatLng;
   note?: string;
+  by?: string; // who sent it (watcher display name, for acks)
+  addr?: string; // human-readable street address of `pos`, when known
+}
+
+/** A watcher's heartbeat: someone is actively watching this session. */
+export interface PresenceMsg {
+  name: string;
+  ts: number;
 }
 
 export interface PosMsg {
@@ -44,7 +56,7 @@ export interface SignalMsg {
   data: any;
 }
 
-export type TopicKind = "pos" | "alert" | "signal" | "state";
+export type TopicKind = "pos" | "alert" | "signal" | "state" | "presence";
 
 export interface SyncHandle {
   sessionId: string;
@@ -54,6 +66,7 @@ export interface SyncHandle {
   onPos: (cb: (m: PosMsg) => void) => () => void;
   onState: (cb: (m: StateMsg) => void) => () => void;
   onSignal: (cb: (m: SignalMsg) => void) => () => void;
+  onPresence: (cb: (m: PresenceMsg) => void) => () => void;
   close: () => void;
   connected: () => boolean;
 }
@@ -67,7 +80,7 @@ export async function connectSession(opts: {
   subscribe?: TopicKind[];
 }): Promise<SyncHandle> {
   const { broker, sessionId, key } = opts;
-  const topics = opts.subscribe ?? ["pos", "alert", "signal", "state"];
+  const topics = opts.subscribe ?? ["pos", "alert", "signal", "state", "presence"];
   const base = `${PREFIX}/${sessionId}`;
   const peerId = `p-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -82,6 +95,7 @@ export async function connectSession(opts: {
   const posCbs = new Set<(m: PosMsg) => void>();
   const stateCbs = new Set<(m: StateMsg) => void>();
   const signalCbs = new Set<(m: SignalMsg) => void>();
+  const presenceCbs = new Set<(m: PresenceMsg) => void>();
 
   /** Flush anything queued in the offline outbox for this session, in order. */
   const flushOutbox = async () => {
@@ -120,6 +134,7 @@ export async function connectSession(opts: {
       if (kind === "alert") alertCbs.forEach((cb) => cb(msg));
       else if (kind === "pos") posCbs.forEach((cb) => cb(msg));
       else if (kind === "state") stateCbs.forEach((cb) => cb(msg));
+      else if (kind === "presence") presenceCbs.forEach((cb) => cb(msg));
       else if (kind === "signal") {
         if (msg.from === peerId) return; // ignore own signaling echoes
         signalCbs.forEach((cb) => cb(msg));
@@ -153,6 +168,7 @@ export async function connectSession(opts: {
     onPos: (cb) => { posCbs.add(cb); return () => { posCbs.delete(cb); }; },
     onState: (cb) => { stateCbs.add(cb); return () => { stateCbs.delete(cb); }; },
     onSignal: (cb) => { signalCbs.add(cb); return () => { signalCbs.delete(cb); }; },
+    onPresence: (cb) => { presenceCbs.add(cb); return () => { presenceCbs.delete(cb); }; },
     close() { try { client.end(true); } catch { /* noop */ } },
     connected: () => client.connected,
   };

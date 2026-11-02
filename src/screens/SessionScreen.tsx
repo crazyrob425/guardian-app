@@ -6,7 +6,7 @@ import { getLabels } from "../lib/labels";
 import { store } from "../lib/store";
 import { importKey } from "../lib/crypto";
 import { connectSession, clientLink, watchLink, type SyncHandle, type AlertMsg, type PosMsg } from "../lib/sync";
-import { distanceM, formatDist, mapsLink, type LatLng } from "../lib/geo";
+import { distanceM, formatDist, mapsLink, reverseGeocode, type LatLng } from "../lib/geo";
 import { Tracker, publishDue, batteryLevel, type TrackMode } from "../lib/tracking";
 import { db, outboxCount } from "../lib/db";
 import { startSiren, stopSiren, playChime, buzz, lockAlarm, isAlarmLocked } from "../lib/audio";
@@ -45,6 +45,11 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const seqRef = useRef(0);
   const batRef = useRef<number | null>(null);
   const modeRef = useRef<TrackMode>("session");
+  const addrRef = useRef<string | null>(null);
+  const panicAtRef = useRef<number | null>(null);
+  const ackedRef = useRef(false);
+  const reAlertedRef = useRef(false);
+  const [watchers, setWatchers] = useState<string[]>([]);
   const [gpsMeta, setGpsMeta] = useState<{ acc: number; queued: number } | null>(null);
   const broadcastRef = useRef<BroadcastHandle | null>(null);
   const flagsRef = useRef({ approaching: false, arrived: false, escalated: false });
@@ -88,7 +93,25 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
             }
           }
         });
-        sync.onAlert((m: AlertMsg) => pushFeed(`Circle event: ${m.type}`, m.type === "panic" || m.type === "duress" ? "danger" : "warn"));
+        sync.onAlert((m: AlertMsg) => {
+          // Phase 2 confirmation ladder: watcher acknowledgments land here.
+          if (m.type === "ack") {
+            ackedRef.current = true;
+            const who = m.by || "Your circle";
+            if (m.note === "onmyway") { playChime(); pushFeed(`🚗 ${who} is ON THEIR WAY to you.`, "warn"); }
+            else if (m.note === "called-help") pushFeed(`📞 ${who} has called for help.`, "warn");
+            else pushFeed(`👁 ${who} saw your alert.`, "info");
+            return;
+          }
+          pushFeed(`Circle event: ${m.type}`, m.type === "panic" || m.type === "duress" ? "danger" : "warn");
+        });
+        // Phase 2 presence: who is actively watching right now.
+        const seen = new Map<string, number>();
+        sync.onPresence((m) => {
+          seen.set(m.name, m.ts);
+          const nowTs = Date.now();
+          setWatchers(Array.from(seen.entries()).filter(([, ts]) => nowTs - ts < 45000).map(([n]) => n));
+        });
 
         // Phase 1 tracking engine: filtered + Kalman-smoothed fixes,
         // adaptive publish cadence (5s session / 2s panic), v2 payloads
@@ -108,7 +131,10 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
                 accuracyM: Math.round(fix.accuracyM), spd: fix.speedMps, hdg: fix.headingDeg, bat: batRef.current,
               }, true).catch(() => {});
               db.trail.add({ sessionId: session.id, ts: t, lat: fix.pos.lat, lng: fix.pos.lng, accuracyM: fix.accuracyM }).catch(() => {});
-              if (seqRef.current % 6 === 0) batteryLevel().then((b) => { batRef.current = b; });
+              if (seqRef.current % 6 === 0) {
+                batteryLevel().then((b) => { batRef.current = b; });
+                reverseGeocode(fix.pos).then((a) => { if (a) addrRef.current = a; });
+              }
             }
           },
           (msg) => pushFeed(`Location issue: ${msg}`, "warn")
@@ -122,7 +148,21 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
       }
     })();
 
-    timer = window.setInterval(() => setNow(Date.now()), 1000);
+    timer = window.setInterval(() => {
+      setNow(Date.now());
+      // Confirmation ladder (Phase 2): an emergency nobody acknowledged
+      // within 3 minutes re-fires push + SMS once — silence escalates.
+      if (panicAtRef.current && !ackedRef.current && !reAlertedRef.current && Date.now() - panicAtRef.current > 180000) {
+        reAlertedRef.current = true;
+        pushFeed("No one has acknowledged your alert — re-sending to your circle now.", "danger");
+        const s = sessionRef.current;
+        if (s) {
+          const link = watchLink(window.location.origin, s.id, s.keyB64);
+          sendEmergencyPush(settings, "STILL NO ACK — emergency alert unacknowledged for 3 minutes. Check the live view NOW").catch(() => {});
+          alertCircle(settings, circle, `Guardian URGENT: the emergency alert for ${settings.displayName || "someone you protect"} is still unacknowledged. Live view: ${link}`).catch(() => {});
+        }
+      }
+    }, 1000);
     return () => {
       dead = true;
       clearInterval(timer);
@@ -161,6 +201,8 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const escalateMissed = async () => {
     const s = sessionRef.current!;
     modeRef.current = "panic"; // Phase 1: 2-second publish cadence in emergencies
+    panicAtRef.current = Date.now();
+    ackedRef.current = false;
     startSiren();
     lockAlarm();
     buzz([500, 200, 500]);
@@ -168,14 +210,15 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     const key = await importKey(s.keyB64).catch(() => null);
     if (key && syncRef.current) {
       const sync = syncRef.current;
-      await sync.publish("alert", { type: "missed-checkout", ts: Date.now(), pos: myPosRef.current ?? undefined }, false).catch(() => {});
+      await sync.publish("alert", { type: "missed-checkout", ts: Date.now(), pos: myPosRef.current ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
       await sync.publish("state", { state: "panic", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
     }
     const link = watchLink(window.location.origin, s.id, s.keyB64);
     const pos = myPosRef.current;
     await alertCircle(settings, circle,
       `Guardian ALERT (missed check-in): ${settings.displayName || "Someone you protect"} didn't check out.` +
-      (pos ? ` Last location: ${mapsLink(pos)}` : "") + ` Live view: ${link}`
+      (addrRef.current ? ` Location: ${addrRef.current}.` : "") +
+      (pos ? ` Map: ${mapsLink(pos)}` : "") + ` Live view: ${link}`
     ).catch(() => {});
     await sendEmergencyPush(settings, "MISSED CHECK-OUT — they did not check out when expected").catch(() => {});
   };
@@ -202,20 +245,24 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     const s = sessionRef.current!;
     setPanicOn(true);
     modeRef.current = "panic"; // Phase 1: 2-second publish cadence in emergencies
+    panicAtRef.current = Date.now();
+    ackedRef.current = false;
+    reAlertedRef.current = false;
     startSiren();
     lockAlarm();
     buzz([400, 100, 400, 100, 400]);
     pushFeed("PANIC TRIGGERED — circle alerted.", "danger");
     const sync = syncRef.current;
     if (sync) {
-      await sync.publish("alert", { type: "panic", ts: Date.now(), pos: myPosRef.current ?? undefined }, false).catch(() => {});
+      await sync.publish("alert", { type: "panic", ts: Date.now(), pos: myPosRef.current ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
       await sync.publish("state", { state: "panic", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
     }
     const link = watchLink(window.location.origin, s.id, s.keyB64);
     const pos = myPosRef.current;
     alertCircle(settings, circle,
       `Guardian ALERT (PANIC BUTTON): ${settings.displayName || "Someone you protect"} needs help NOW.` +
-      (pos ? ` Live location: ${mapsLink(pos)}` : "") + ` Watch: ${link}`
+      (addrRef.current ? ` Location: ${addrRef.current}.` : "") +
+      (pos ? ` Map: ${mapsLink(pos)}` : "") + ` Watch: ${link}`
     ).catch(() => {});
     sendEmergencyPush(settings, "PANIC BUTTON pressed — they need help NOW").catch(() => {});
     // Offer live camera/mic to the circle (best-effort)
@@ -245,9 +292,24 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     sendEmergencyPush(settings, "DURESS — the alarm was silenced with the duress PIN. Possible coercion — check on them NOW").catch(() => {});
   };
 
+  /** Coded quick messages (Phase 2): discreet one-tap signals to the circle. */
+  const sendCoded = async (code: "pizza" | "call" | "pickup" | "talk") => {
+    const sync = syncRef.current;
+    if (!sync) return;
+    if (code === "pizza") {
+      await sync.publish("alert", { type: "checkin", ts: Date.now(), note: "🍕 All good" }, false).catch(() => {});
+      pushFeed("Sent: 🍕 I'm OK.");
+    } else {
+      await sync.publish("alert", { type: "coded", ts: Date.now(), note: code, pos: myPosRef.current ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
+      pushFeed(code === "pickup" ? "Sent: 🚗 come get me." : code === "call" ? "Sent: 📞 call me." : "Sent: 💬 need to talk.");
+      if (code === "pickup") buzz([300, 100, 300]);
+    }
+  };
+
   const standDownNow = async () => {
     const s = sessionRef.current!;
     setPanicOn(false);
+    panicAtRef.current = null;
     modeRef.current = "session";
     stopSiren();
     broadcastRef.current?.stop();
@@ -356,6 +418,20 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
         <div className="flex justify-center py-2">
           <PanicButton label={L.Panic} onTrigger={doPanic} size={168} />
         </div>
+
+        {watchers.length > 0 && (
+          <p className="text-center text-xs text-emerald-300">👁 Watching now: {watchers.join(", ")}</p>
+        )}
+
+        <Card>
+          <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">Quick signals — tap to send your circle a coded message</p>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <button onClick={() => void sendCoded("pizza")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">🍕<br /><span className="text-xs text-zinc-400">I'm OK</span></button>
+            <button onClick={() => void sendCoded("call")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">📞<br /><span className="text-xs text-zinc-400">Call me</span></button>
+            <button onClick={() => void sendCoded("pickup")} className="rounded-xl bg-amber-500/15 px-2 py-3 text-sm">🚗<br /><span className="text-xs text-amber-200">Come get me</span></button>
+            <button onClick={() => void sendCoded("talk")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">💬<br /><span className="text-xs text-zinc-400">Need to talk</span></button>
+          </div>
+        </Card>
 
         <div className="grid grid-cols-2 gap-3">
           <Btn onClick={shareClient}>📤 Share {L.client} link</Btn>
