@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../lib/i18n";
 import { TopBar, Card, Btn } from "../components/ui";
 import MapView, { type MapMarker } from "../components/MapView";
 import { importKey } from "../lib/crypto";
@@ -15,6 +17,7 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
   const [providerMeta, setProviderMeta] = useState<{ ts: number; bat: number | null; acc?: number; seq?: number } | null>(null);
   const [clientMeta, setClientMeta] = useState<{ spd: number | null } | null>(null);
   const [tick, setTick] = useState(Date.now());
+  const { t } = useTranslation();
   const [myName, setMyName] = useState(() => { try { return localStorage.getItem("guardian.watcherName") || ""; } catch { return ""; } });
   const [myAck, setMyAck] = useState<string | null>(null);
   const [state, setState] = useState<StateMsg | null>(null);
@@ -58,6 +61,10 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
     playChime();
     setAlertsOn(true);
   };
+
+  useEffect(() => {
+    if (navigator.language?.toLowerCase().startsWith("es")) void i18n.changeLanguage("es");
+  }, []);
 
   useEffect(() => {
     let dead = false;
@@ -150,30 +157,30 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
         {alertsOn && <p className="text-center text-xs text-emerald-300">🔔 Loud alerts ON — keep this page open.</p>}
         {state?.state === "done" && (
           <Card className="border-emerald-500/50 bg-emerald-500/10 text-center">
-            <p className="text-2xl font-black text-emerald-300">She's Safe ✅</p>
-            <p className="mt-1 text-sm text-emerald-200/80">Checked out{alerts.find((a) => a.type === "checkout") ? ` at ${new Date(alerts.find((a) => a.type === "checkout")!.ts).toLocaleTimeString()}` : ""}. You can close this page — thank you for watching over her.</p>
+            <p className="text-2xl font-black text-emerald-300">{t("watch.safe")}</p>
+            <p className="mt-1 text-sm text-emerald-200/80">{t("watch.checkedOut")}{alerts.find((a) => a.type === "checkout") ? ` — ${new Date(alerts.find((a) => a.type === "checkout")!.ts).toLocaleTimeString()}` : ""}. {t("watch.safeThanks")}</p>
           </Card>
         )}
         {emergency && (
           <Card className="border-red-500/50 bg-red-500/10">
-            <p className="text-center text-lg font-black uppercase tracking-widest text-red-400">Emergency signal active</p>
-            <p className="mt-1 text-center text-sm text-red-200/80">If you can't reach them, consider contacting local emergency services with the location below.</p>
-            <p className="mt-3 text-center text-xs uppercase tracking-widest text-red-300/70">Let her know a human is responding</p>
+            <p className="text-center text-lg font-black uppercase tracking-widest text-red-400">{t("watch.emergency")}</p>
+            <p className="mt-1 text-center text-sm text-red-200/80">{t("watch.emergencyHint")}</p>
+            <p className="mt-3 text-center text-xs uppercase tracking-widest text-red-300/70">{t("watch.letHerKnow")}</p>
             {myAck ? (
               <p className="mt-2 text-center text-sm font-semibold text-emerald-300">
-                {myAck === "onmyway" ? "🚗 You told her you're on your way." : myAck === "called-help" ? "📞 You told her help has been called." : "👁 You acknowledged the alert."}
+                {myAck === "onmyway" ? t("watch.ackedWay") : myAck === "called-help" ? t("watch.ackedHelp") : t("watch.ackedSeen")}
               </p>
             ) : (
               <div className="mt-2 grid grid-cols-3 gap-2">
-                <Btn onClick={() => void sendAck("seen")}>👁 I see it</Btn>
-                <Btn variant="primary" onClick={() => void sendAck("onmyway")}>🚗 On my way</Btn>
-                <Btn onClick={() => void sendAck("called-help")}>📞 Called help</Btn>
+                <Btn onClick={() => void sendAck("seen")}>{t("watch.ackSeen")}</Btn>
+                <Btn variant="primary" onClick={() => void sendAck("onmyway")}>{t("watch.ackWay")}</Btn>
+                <Btn onClick={() => void sendAck("called-help")}>{t("watch.ackHelp")}</Btn>
               </div>
             )}
           </Card>
         )}
         <Card>
-          <label className="mb-1 block text-xs uppercase tracking-widest text-zinc-500">Your name (she'll see who's watching & responding)</label>
+          <label className="mb-1 block text-xs uppercase tracking-widest text-zinc-500">{t("watch.yourName")}</label>
           <input value={myName} onChange={(e) => { setMyName(e.target.value); try { localStorage.setItem("guardian.watcherName", e.target.value); } catch { /* noop */ } }}
             placeholder="e.g. Maria" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600" />
         </Card>

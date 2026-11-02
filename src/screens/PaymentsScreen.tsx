@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TopBar, Card, Btn, Field, inputCls } from "../components/ui";
 import { store } from "../lib/store";
 import { createBtcPayInvoice, stripeLink, demoInvoice, money, type Invoice } from "../lib/payments";
+import Qr from "../components/Qr";
 
 const LABELS = ["Deposit", "Tribute", "Full rate", "Custom"];
 
@@ -105,6 +106,8 @@ export default function PaymentsScreen(props: { onBack: () => void }) {
               <p className="text-sm text-zinc-400">Connect BTCPay Server in Settings to generate a real payment address + QR.</p>
             ) : (
               <div className="space-y-2">
+                <Qr value={invoice.checkoutLink} />
+                <p className="text-center text-xs text-zinc-500">Point his camera at the code — opens the secure checkout.</p>
                 <Btn variant="primary" onClick={() => window.open(invoice.checkoutLink, "_blank", "noopener")}>Open checkout</Btn>
                 <Btn onClick={() => copy(invoice.checkoutLink)}>Copy checkout link</Btn>
               </div>

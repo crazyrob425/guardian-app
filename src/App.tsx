@@ -9,6 +9,7 @@ import WatchScreen from "./screens/WatchScreen";
 import PaymentsScreen from "./screens/PaymentsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import ClientsScreen from "./screens/ClientsScreen";
+import UpdateToast from "./components/UpdateToast";
 import FakeCall from "./components/FakeCall";
 import { fakeCallDue, clearFakeCall } from "./lib/fakecall";
 import { ErrorBoundary } from "react-error-boundary";
@@ -178,6 +179,7 @@ export default function App() {
         </div>
       )}
       {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
+      <UpdateToast />
       {/* Crash-proofing (Phase 1): a failure in any single screen shows a
           calm fallback instead of a dead app. The SOS banner above and any
           sounding alarm live OUTSIDE this boundary, so they keep working. */}

@@ -9,6 +9,8 @@ import { genTopic, sendPush, circleInviteText, ntfyConfigured } from "../lib/not
 import { shareLink, type SharePayload } from "../lib/share";
 import ShareSheet from "../components/ShareSheet";
 import { identityFingerprint } from "../lib/identity";
+import i18n from "../lib/i18n";
+import { resetTour } from "../lib/tour";
 import { hasPasskey, registerPasskey, removePasskey, passkeySupported } from "../lib/passkey";
 
 /** Phase 3 security extras: transport choice, identity fingerprint, passkey. */
@@ -57,6 +59,23 @@ function SecurityExtras(props: { s: Settings; set: <K extends keyof Settings>(k:
           </>
         )}
         {msg && <p className="text-sm text-emerald-300">{msg}</p>}
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Safety tour</p>
+        <p className="text-sm text-zinc-400">The 60-second first-run walkthrough: panic button, check-ins, your circle, screening, and the rescue call.</p>
+        <Btn onClick={() => { resetTour(); setMsg("Tour reset — it will replay next time you open the Home screen."); }}>Replay the safety tour</Btn>
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Language / Idioma</p>
+        <p className="text-sm text-zinc-400">Applies to the safety-critical screens: lock, panic PIN gate, watcher emergency view, and quick signals. Watchers see their own phone's language automatically.</p>
+        <div className="grid grid-cols-2 gap-2">
+          {([["en", "English"], ["es", "Español"]] as const).map(([v, label]) => (
+            <button key={v} onClick={() => { set("language", v); void i18n.changeLanguage(v); }}
+              className={`rounded-xl px-2 py-2 text-sm font-semibold ${s.language === v ? "bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-400/40" : "bg-white/5 text-zinc-400"}`}>{label}</button>
+          ))}
+        </div>
       </Card>
     </>
   );

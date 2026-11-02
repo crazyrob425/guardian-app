@@ -5,6 +5,7 @@ import { getLabels } from "../lib/labels";
 import { store, type ActiveSession } from "../lib/store";
 import { startSiren, stopSiren, isSirenOn, buzz } from "../lib/audio";
 import { scheduleFakeCall, pendingFakeCall, clearFakeCall } from "../lib/fakecall";
+import { tourDone, startTour } from "../lib/tour";
 
 export default function HomeScreen(props: {
   discreet: boolean;
@@ -21,6 +22,14 @@ export default function HomeScreen(props: {
   useEffect(() => {
     const t = setInterval(() => setSirenOn(isSirenOn()), 500);
     return () => clearInterval(t);
+  }, []);
+
+  // First-run safety tour (Phase 4): once, only when nothing urgent is live.
+  useEffect(() => {
+    if (props.session || tourDone()) return;
+    const t = setTimeout(() => { try { startTour(); } catch { /* tour is a nicety */ } }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -50,7 +59,9 @@ export default function HomeScreen(props: {
       )}
 
       <Card className="flex flex-col items-center py-8">
+        <div data-tour="panic">
         <PanicButton label={`Hold for ${L.panic}`} onTrigger={() => { buzz([300]); props.onPanic(); }} />
+        </div>
         {sirenOn && (
           <button onClick={() => { if (stopSiren()) setSirenOn(false); }} className="mt-4 rounded-xl bg-amber-500/20 border border-amber-500/40 px-6 py-2.5 font-semibold text-amber-300">
             Stop alarm
@@ -59,11 +70,11 @@ export default function HomeScreen(props: {
       </Card>
 
       <div className="grid grid-cols-2 gap-3">
-        <Btn variant="primary" onClick={() => props.go("#/date")}>Start {L.date}</Btn>
+        <Btn variant="primary" data-tour="start" onClick={() => props.go("#/date")}>Start {L.date}</Btn>
         <Btn onClick={() => props.go("#/payments")}>Payments</Btn>
-        <Btn onClick={() => props.go("#/circle")}>Safety circle</Btn>
-        <Btn onClick={() => props.go("#/clients")}>{L.Client} log</Btn>
-        <Btn onClick={() => setFakeMenu((v) => !v)}>📞 Fake rescue call</Btn>
+        <Btn data-tour="circle" onClick={() => props.go("#/circle")}>Safety circle</Btn>
+        <Btn data-tour="clients" onClick={() => props.go("#/clients")}>{L.Client} log</Btn>
+        <Btn data-tour="fakecall" onClick={() => setFakeMenu((v) => !v)}>📞 Fake rescue call</Btn>
         <Btn onClick={() => { if (sirenOn) { const stopped = stopSiren(); if (stopped) setSirenOn(false); } else { startSiren(); setSirenOn(true); } }}>
           {sirenOn ? "Stop alarm" : "Test alarm"}
         </Btn>

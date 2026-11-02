@@ -30,9 +30,10 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,png,svg,woff2,mp3}"],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.tile\.openstreetmap\.org\/.*/i,
+            // OpenFreeMap vector tiles + styles + glyphs (Phase 4 MapLibre).
+            urlPattern: /^https:\/\/(openfreemap\.org|tiles\.openfreemap\.org)\/.*/i,
             handler: "CacheFirst",
-            options: { cacheName: "osm-tiles", expiration: { maxEntries: 500, maxAgeSeconds: 7 * 24 * 3600 } },
+            options: { cacheName: "vector-tiles", expiration: { maxEntries: 400, maxAgeSeconds: 7 * 24 * 3600 } },
           },
         ],
       },

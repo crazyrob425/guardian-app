@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { TopBar, Card, Btn } from "../components/ui";
 import PanicButton from "../components/PanicButton";
 import MapView, { type MapMarker } from "../components/MapView";
@@ -26,6 +27,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const circle = store.getCircle();
 
   const [myPos, setMyPos] = useState<LatLng | null>(null);
+  const { t } = useTranslation();
   const [clientPos, setClientPos] = useState<LatLng | null>(null);
   const [clientState, setClientState] = useState<"none" | "approaching" | "arrived">("none");
   const [feed, setFeed] = useState<FeedItem[]>([]);
@@ -420,16 +422,16 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
         </div>
 
         {watchers.length > 0 && (
-          <p className="text-center text-xs text-emerald-300">👁 Watching now: {watchers.join(", ")}</p>
+          <p className="text-center text-xs text-emerald-300">👁 {t("session.watchingNow")}: {watchers.join(", ")}</p>
         )}
 
         <Card>
-          <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">Quick signals — tap to send your circle a coded message</p>
+          <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">{t("session.quickSignals")}</p>
           <div className="grid grid-cols-4 gap-2 text-center">
-            <button onClick={() => void sendCoded("pizza")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">🍕<br /><span className="text-xs text-zinc-400">I'm OK</span></button>
-            <button onClick={() => void sendCoded("call")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">📞<br /><span className="text-xs text-zinc-400">Call me</span></button>
-            <button onClick={() => void sendCoded("pickup")} className="rounded-xl bg-amber-500/15 px-2 py-3 text-sm">🚗<br /><span className="text-xs text-amber-200">Come get me</span></button>
-            <button onClick={() => void sendCoded("talk")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">💬<br /><span className="text-xs text-zinc-400">Need to talk</span></button>
+            <button onClick={() => void sendCoded("pizza")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">🍕<br /><span className="text-xs text-zinc-400">{t("session.imOk")}</span></button>
+            <button onClick={() => void sendCoded("call")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">📞<br /><span className="text-xs text-zinc-400">{t("session.callMe")}</span></button>
+            <button onClick={() => void sendCoded("pickup")} className="rounded-xl bg-amber-500/15 px-2 py-3 text-sm">🚗<br /><span className="text-xs text-amber-200">{t("session.comeGetMe")}</span></button>
+            <button onClick={() => void sendCoded("talk")} className="rounded-xl bg-white/5 px-2 py-3 text-sm">💬<br /><span className="text-xs text-zinc-400">{t("session.needToTalk")}</span></button>
           </div>
         </Card>
 

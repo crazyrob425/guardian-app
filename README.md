@@ -192,3 +192,18 @@ Private project. All rights reserved.
   signaling now rides our own rooms instead of the public broker, which was the actual
   privacy/stability goal. Revisit if a LiveKit Cloud account is ever provisioned.
 - Tests: 23/23.
+
+## v0.8.0 — Phase 4: Face-lift (2026-11-01)
+- **MapLibre GL + OpenFreeMap** vector maps replace Leaflet/raster (dark style, no API key,
+  no watermark; MapLibre lazy-loads as its own chunk). CARTO was already retired in v0.7.1
+  after it began watermarking tiles.
+- **Update toast:** a waiting service-worker update now surfaces as a one-tap "Update now"
+  banner instead of silently running yesterday's build.
+- **First-run safety tour** (driver.js): five stops on Home — panic/duress, check-in/out
+  escalation, circle, screening log, fake rescue call. Runs once, replayable from Settings,
+  never during a live session.
+- **i18n (EN/ES):** i18next wired into the safety-critical surfaces — lock screen, panic PIN
+  gate, watcher emergency/ack/She's Safe strings, session quick signals. Owner picks a
+  language in Settings; guest watchers automatically get their own phone's language.
+- **Payment QR codes:** BTCPay checkout links render as a scannable QR on the invoice card.
+- Marketing site refreshed for Phases 2–4 (16 feature cards, 15 FAQs, JSON-LD in sync).

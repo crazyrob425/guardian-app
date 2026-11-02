@@ -7,6 +7,7 @@ export function Btn(props: {
   className?: string;
   disabled?: boolean;
   type?: "button" | "submit";
+  "data-tour"?: string;
 }) {
   const v = {
     primary: "bg-emerald-500 text-black font-semibold hover:bg-emerald-400",
@@ -19,6 +20,7 @@ export function Btn(props: {
       type={props.type ?? "button"}
       disabled={props.disabled}
       onClick={props.onClick}
+      data-tour={props["data-tour"]}
       className={`w-full rounded-xl px-5 py-3.5 text-base transition active:scale-[0.98] disabled:opacity-40 ${v} ${props.className ?? ""}`}
     >
       {props.children}

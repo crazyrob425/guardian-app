@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { verifyPin } from "../lib/pin";
 import { hasPasskey, verifyPasskey, passkeySupported } from "../lib/passkey";
 import { buzz } from "../lib/audio";
@@ -12,6 +13,7 @@ export default function LockScreen(props: {
 }) {
   const [pin, setPin] = useState("");
   const [err, setErr] = useState("");
+  const { t } = useTranslation();
 
   const press = (d: string) => {
     if (pin.length >= 8) return;
@@ -27,7 +29,7 @@ export default function LockScreen(props: {
       props.onUnlock(true);
     } else {
       buzz(120);
-      setErr("Wrong PIN");
+      setErr(t("lock.wrongPin"));
       setPin("");
     }
   };
@@ -40,7 +42,7 @@ export default function LockScreen(props: {
         </svg>
       </div>
       <h1 className="mb-1 text-xl font-bold text-zinc-100">{props.title}</h1>
-      <p className="mb-6 text-sm text-zinc-500">Enter PIN to continue</p>
+      <p className="mb-6 text-sm text-zinc-500">{t("lock.enterPin")}</p>
       <div className="mb-6 flex gap-3">
         {Array.from({ length: Math.max(4, pin.length) }).map((_, i) => (
           <div key={i} className={`h-3.5 w-3.5 rounded-full ${i < pin.length ? "bg-emerald-400" : "bg-white/10"}`} />
@@ -59,14 +61,14 @@ export default function LockScreen(props: {
         ))}
       </div>
       <button onClick={submit} className="mt-6 w-full rounded-xl bg-emerald-500 py-3.5 font-semibold text-black">
-        Unlock
+        {t("lock.unlock")}
       </button>
       {passkeySupported() && hasPasskey() && (
         <button
-          onClick={async () => { try { if (await verifyPasskey()) props.onUnlock(false); else setErr("Passkey didn't verify — PIN still works."); } catch { setErr("Passkey didn't verify — PIN still works."); } }}
+          onClick={async () => { try { if (await verifyPasskey()) props.onUnlock(false); else setErr(t("lock.passkeyFail")); } catch { setErr(t("lock.passkeyFail")); } }}
           className="mt-3 w-full rounded-xl bg-white/10 py-3.5 font-semibold text-zinc-100"
         >
-          🖐 Unlock with fingerprint / Face ID
+          {t("lock.passkey")}
         </button>
       )}
     </div>

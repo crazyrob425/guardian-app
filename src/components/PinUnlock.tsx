@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { verifyPin } from "../lib/pin";
 import { hasPasskey, verifyPasskey, passkeySupported } from "../lib/passkey";
 import { store } from "../lib/store";
@@ -8,7 +9,7 @@ import { buzz, unlockAlarm } from "../lib/audio";
  * Panic PIN gate. When a panic alarm is sounding, this is the ONLY way to
  * silence it: the App PIN set in Settings. The duress PIN also "works" —
  * the alarm stops — but onDuress fires a silent coercion alert, so being
- * forced to silence it still calls for help. "Keep it sounding" closes
+ * forced to silence it still calls for help. "{t("pinlock.keep")}" closes
  * the pad and leaves the alarm blaring.
  */
 export default function PinUnlock(props: {
@@ -18,6 +19,7 @@ export default function PinUnlock(props: {
 }) {
   const [pin, setPin] = useState("");
   const [err, setErr] = useState("");
+  const { t } = useTranslation();
   const settings = store.getSettings();
 
   const press = (d: string) => {
@@ -37,7 +39,7 @@ export default function PinUnlock(props: {
       props.onUnlocked();
     } else {
       buzz(120);
-      setErr("Wrong PIN — alarm keeps sounding");
+      setErr(t("pinlock.wrong"));
       setPin("");
     }
   };
@@ -46,9 +48,9 @@ export default function PinUnlock(props: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-3xl border border-red-500/40 bg-[#14090c] p-6 shadow-2xl">
         <p className="text-center text-3xl">🔒</p>
-        <h2 className="mt-2 text-center text-lg font-black uppercase tracking-widest text-red-400">Alarm locked</h2>
+        <h2 className="mt-2 text-center text-lg font-black uppercase tracking-widest text-red-400">{t("pinlock.title")}</h2>
         <p className="mt-1 text-center text-sm text-zinc-400">
-          This panic alarm can only be silenced with your PIN — the one you set in Settings.
+          {t("pinlock.sub")}
         </p>
         <div className="my-5 flex justify-center gap-3">
           {Array.from({ length: Math.max(4, pin.length) }).map((_, i) => (
@@ -68,18 +70,18 @@ export default function PinUnlock(props: {
           ))}
         </div>
         <button onClick={submit} disabled={pin.length < 4} className="mt-5 w-full rounded-xl bg-red-500 py-3.5 font-bold text-white disabled:opacity-40">
-          Enter PIN — silence alarm
+          {t("pinlock.enter")}
         </button>
         {passkeySupported() && hasPasskey() && (
           <button
-            onClick={async () => { try { if (await verifyPasskey()) { unlockAlarm(); props.onUnlocked(); } else setErr("Passkey didn't verify — alarm keeps sounding"); } catch { setErr("Passkey didn't verify — alarm keeps sounding"); } }}
+            onClick={async () => { try { if (await verifyPasskey()) { unlockAlarm(); props.onUnlocked(); } else setErr(t("pinlock.passkeyFail")); } catch { setErr(t("pinlock.passkeyFail")); } }}
             className="mt-2.5 w-full rounded-xl bg-white/10 py-3 font-semibold text-zinc-100"
           >
-            🖐 Silence with fingerprint / Face ID
+            {t("pinlock.passkey")}
           </button>
         )}
         <button onClick={props.onKeepSounding} className="mt-2.5 w-full rounded-xl bg-white/5 py-3 text-sm text-zinc-300">
-          Keep it sounding
+          {t("pinlock.keep")}
         </button>
       </div>
     </div>

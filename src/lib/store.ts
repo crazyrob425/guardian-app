@@ -31,6 +31,7 @@ export interface Settings {
   fakeCallerName: string; // who the fake rescue call pretends to be from
   syncTransport: "auto" | "cloud" | "mqtt"; // Phase 3 protocol v2 transport
   cloudSyncUrl: string; // wss:// base of the Guardian Cloud sync worker
+  language: "en" | "es"; // Phase 4 i18n (safety surfaces)
 }
 
 export interface ActiveSession {
@@ -71,6 +72,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fakeCallerName: "Mom",
   syncTransport: "auto",
   cloudSyncUrl: "wss://guardian-sync.blacklisted.studio",
+  language: "en",
 };
 
 function read<T>(key: string, fallback: T): T {
