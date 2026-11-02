@@ -52,3 +52,41 @@ export function formatDist(m: number): string {
 export function mapsLink(p: LatLng): string {
   return `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
 }
+
+/** Compass bearing from a to b, degrees 0–360. */
+export function bearingDeg(a: LatLng, b: LatLng): number {
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+export type ApproachState = "far" | "approaching" | "arrived";
+
+/** Arrival semantics shared by provider + watcher views. */
+export function approachState(distM: number, radiusM: number): ApproachState {
+  if (distM < 30) return "arrived";
+  if (distM < radiusM) return "approaching";
+  return "far";
+}
+
+/**
+ * Rough ETA in seconds for a watcher display. Uses the mover's live speed
+ * when plausible; otherwise assumes city driving (8 m/s) beyond 800 m and
+ * walking (1.4 m/s) inside it. Deliberately labeled "≈" in the UI.
+ */
+export function etaSeconds(distM: number, speedMps?: number | null): number {
+  if (distM < 30) return 0;
+  let v = speedMps && speedMps > 0.5 && speedMps < 60 ? speedMps : distM > 800 ? 8 : 1.4;
+  // closing speed can't exceed what's plausible for the remaining distance
+  v = Math.max(v, 0.5);
+  return Math.round(distM / v);
+}
+
+export function formatEta(sec: number): string {
+  if (sec <= 0) return "now";
+  if (sec < 90) return "≈1 min";
+  return `≈${Math.round(sec / 60)} min`;
+}

@@ -5,6 +5,7 @@
 
 import mqtt, { MqttClient } from "mqtt";
 import { encrypt, decrypt } from "./crypto";
+import { db } from "./db";
 import type { LatLng } from "./geo";
 
 export type AlertType = "panic" | "duress" | "missed-checkout" | "checkin" | "checkout" | "arriving" | "arrived";
@@ -21,6 +22,12 @@ export interface PosMsg {
   ts: number;
   pos: LatLng;
   accuracyM?: number;
+  // v2 fields (Phase 1) — all optional; v1 senders simply omit them.
+  v?: 2;
+  seq?: number; // per-sender sequence — gaps reveal an interrupted signal
+  spd?: number | null; // m/s
+  hdg?: number | null; // degrees
+  bat?: number | null; // battery %, null when the API is unavailable
 }
 
 export interface StateMsg {
@@ -76,11 +83,28 @@ export async function connectSession(opts: {
   const stateCbs = new Set<(m: StateMsg) => void>();
   const signalCbs = new Set<(m: SignalMsg) => void>();
 
+  /** Flush anything queued in the offline outbox for this session, in order. */
+  const flushOutbox = async () => {
+    try {
+      const rows = await db.outbox.where("sessionId").equals(sessionId).sortBy("ts");
+      for (const row of rows) {
+        if (!client.connected) break;
+        await new Promise<void>((res) => {
+          client.publish(row.topic, row.payload, { qos: 1 }, () => res());
+        });
+        if (row.id != null) await db.outbox.delete(row.id);
+      }
+    } catch {
+      /* outbox flush is best-effort; rows stay queued for the next reconnect */
+    }
+  };
+
   await new Promise<void>((resolve, reject) => {
     const to = setTimeout(() => reject(new Error("Could not reach sync server. Check your connection.")), 10000);
     client.on("connect", () => {
       clearTimeout(to);
       topics.forEach((t) => client.subscribe(`${base}/${t}`, { qos: 1 }));
+      void flushOutbox();
       resolve();
     });
     client.on("error", (e) => {
@@ -110,7 +134,20 @@ export async function connectSession(opts: {
     peerId,
     async publish(kind, msg, retain = false) {
       const enc = await encrypt(key, msg);
-      client.publish(`${base}/${kind}`, enc, { qos: 1, retain });
+      const topic = `${base}/${kind}`;
+      if (client.connected) {
+        client.publish(topic, enc, { qos: 1, retain });
+      } else {
+        // Offline: never lose a message — queue the encrypted payload on
+        // this device; it flushes in order on the next reconnect. Retained
+        // messages (state/pos) are superseded by their next update, so only
+        // one-shot messages (alerts) need the queue.
+        if (!retain) {
+          try {
+            await db.outbox.add({ sessionId, topic, payload: enc, ts: Date.now() });
+          } catch { /* storage full/blocked — nothing more we can do */ }
+        }
+      }
     },
     onAlert: (cb) => { alertCbs.add(cb); return () => { alertCbs.delete(cb); }; },
     onPos: (cb) => { posCbs.add(cb); return () => { posCbs.delete(cb); }; },

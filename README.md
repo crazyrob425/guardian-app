@@ -133,3 +133,19 @@ worker/       sms-relay.js — Cloudflare Worker for Twilio
 ## License
 
 Private project. All rights reserved.
+
+## v0.5.0 — Phase 1: GPS Reliability Pack (2026-11-01)
+- **Tracking engine** (`src/lib/tracking.ts`): Traccar-style filter chain — accuracy gate
+  (>65 m rejected, coarse accepted only when stale), teleport/outlier rejection, Kalman
+  smoothing (`src/lib/kalman.ts`) — with pure, unit-tested decision functions (Vitest, 11 tests).
+- **Adaptive cadence:** publish every 5 s / 25 m in session, **2 s / 10 m in panic**, 10 s idle;
+  significant-change publishes immediately.
+- **PosMsg v2:** sequence numbers (gaps = interrupted signal), speed, heading, **battery %** —
+  fully backward compatible with v1 senders.
+- **Offline outbox (Dexie):** alerts composed while disconnected are encrypted, queued on-device,
+  and flushed in order on reconnect — an alert is never silently lost. Session trail recorded
+  on-device; diagnostics log for crashes.
+- **Watcher upgrades:** last-update age, GPS accuracy, low-battery warning, **"signal
+  interrupted" warning after 45 s of silence**, guest distance + ETA at current pace.
+- **Crash-proofing:** every screen sits behind an error boundary — a failure in one screen
+  shows a calm fallback; the SOS banner and any sounding alarm live outside the boundary.

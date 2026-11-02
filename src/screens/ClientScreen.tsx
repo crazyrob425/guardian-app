@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Card, Btn } from "../components/ui";
 import { importKey } from "../lib/crypto";
 import { connectSession, type SyncHandle, type StateMsg } from "../lib/sync";
-import { watchPosition, type LatLng } from "../lib/geo";
+import { Tracker, publishDue, batteryLevel } from "../lib/tracking";
+import type { LatLng } from "../lib/geo";
 import { store } from "../lib/store";
 
 /** What the CLIENT sees: a discreet location-sharing page. No branding beyond "Guardian". */
@@ -11,7 +12,10 @@ export default function ClientScreen(props: { sessionId: string; keyB64: string 
   const [state, setState] = useState<StateMsg | null>(null);
   const [err, setErr] = useState("");
   const syncRef = useRef<SyncHandle | null>(null);
-  const lastPub = useRef(0);
+  const lastPub = useRef<{ ts: number; pos: LatLng } | null>(null);
+  const seq = useRef(0);
+  const bat = useRef<number | null>(null);
+  const trackerRef = useRef<Tracker | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -38,22 +42,31 @@ export default function ClientScreen(props: { sessionId: string; keyB64: string 
 
   const toggle = async (on: boolean) => {
     setSharing(on);
-    if (!on) return;
-    unwatchRef.current = watchPosition(
-      (p: LatLng) => {
+    if (!on) {
+      trackerRef.current?.stop();
+      trackerRef.current = null;
+      return;
+    }
+    batteryLevel().then((b) => { bat.current = b; });
+    const tracker = new Tracker(
+      (fix) => {
         const t = Date.now();
-        if (t - lastPub.current > 10000 && syncRef.current) {
-          lastPub.current = t;
-          // (re)connect with pos subscription if needed — we only publish
-          syncRef.current.publish("pos", { from: "client", ts: t, pos: p }, true).catch(() => {});
+        if (syncRef.current && publishDue("session", lastPub.current, fix, t)) {
+          lastPub.current = { ts: t, pos: fix.pos };
+          seq.current += 1;
+          syncRef.current.publish("pos", {
+            from: "client", v: 2, seq: seq.current, ts: t, pos: fix.pos,
+            accuracyM: Math.round(fix.accuracyM), spd: fix.speedMps, hdg: fix.headingDeg, bat: bat.current,
+          }, true).catch(() => {});
         }
       },
       (m) => setErr(m)
     );
+    trackerRef.current = tracker;
+    tracker.start();
   };
-  const unwatchRef = useRef(() => {});
 
-  useEffect(() => () => unwatchRef.current(), []);
+  useEffect(() => () => trackerRef.current?.stop(), []);
 
   const active = !state || state.state === "active";
 

@@ -6,7 +6,9 @@ import { getLabels } from "../lib/labels";
 import { store } from "../lib/store";
 import { importKey } from "../lib/crypto";
 import { connectSession, clientLink, watchLink, type SyncHandle, type AlertMsg, type PosMsg } from "../lib/sync";
-import { watchPosition, distanceM, formatDist, mapsLink, type LatLng } from "../lib/geo";
+import { distanceM, formatDist, mapsLink, type LatLng } from "../lib/geo";
+import { Tracker, publishDue, batteryLevel, type TrackMode } from "../lib/tracking";
+import { db, outboxCount } from "../lib/db";
 import { startSiren, stopSiren, playChime, buzz, lockAlarm, isAlarmLocked } from "../lib/audio";
 import PinUnlock from "../components/PinUnlock";
 import { alertCircle } from "../lib/sms";
@@ -39,7 +41,11 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const syncRef = useRef<SyncHandle | null>(null);
   const sessionRef = useRef(session);
   const myPosRef = useRef<LatLng | null>(null);
-  const lastPubRef = useRef(0);
+  const lastPubRef = useRef<{ ts: number; pos: LatLng } | null>(null);
+  const seqRef = useRef(0);
+  const batRef = useRef<number | null>(null);
+  const modeRef = useRef<TrackMode>("session");
+  const [gpsMeta, setGpsMeta] = useState<{ acc: number; queued: number } | null>(null);
   const broadcastRef = useRef<BroadcastHandle | null>(null);
   const flagsRef = useRef({ approaching: false, arrived: false, escalated: false });
 
@@ -50,8 +56,9 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   useEffect(() => {
     if (!session) { props.go("#/"); return; }
     let dead = false;
-    let unwatch = () => {};
+    let tracker: Tracker | null = null;
     let timer = 0;
+    let metaTimer = 0;
 
     (async () => {
       try {
@@ -83,18 +90,33 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
         });
         sync.onAlert((m: AlertMsg) => pushFeed(`Circle event: ${m.type}`, m.type === "panic" || m.type === "duress" ? "danger" : "warn"));
 
-        unwatch = watchPosition(
-          (p) => {
-            myPosRef.current = p;
-            setMyPos(p);
+        // Phase 1 tracking engine: filtered + Kalman-smoothed fixes,
+        // adaptive publish cadence (5s session / 2s panic), v2 payloads
+        // with sequence + battery, on-device session trail.
+        batteryLevel().then((b) => { batRef.current = b; });
+        tracker = new Tracker(
+          (fix) => {
+            myPosRef.current = fix.pos;
+            setMyPos(fix.pos);
+            setGpsMeta((m) => ({ acc: Math.round(fix.accuracyM), queued: m?.queued ?? 0 }));
             const t = Date.now();
-            if (t - lastPubRef.current > 10000 && syncRef.current) {
-              lastPubRef.current = t;
-              syncRef.current.publish("pos", { from: "provider", ts: t, pos: p }, true).catch(() => {});
+            if (syncRef.current && publishDue(modeRef.current, lastPubRef.current, fix, t)) {
+              lastPubRef.current = { ts: t, pos: fix.pos };
+              seqRef.current += 1;
+              syncRef.current.publish("pos", {
+                from: "provider", v: 2, seq: seqRef.current, ts: t, pos: fix.pos,
+                accuracyM: Math.round(fix.accuracyM), spd: fix.speedMps, hdg: fix.headingDeg, bat: batRef.current,
+              }, true).catch(() => {});
+              db.trail.add({ sessionId: session.id, ts: t, lat: fix.pos.lat, lng: fix.pos.lng, accuracyM: fix.accuracyM }).catch(() => {});
+              if (seqRef.current % 6 === 0) batteryLevel().then((b) => { batRef.current = b; });
             }
           },
           (msg) => pushFeed(`Location issue: ${msg}`, "warn")
         );
+        tracker.start();
+        metaTimer = window.setInterval(() => {
+          outboxCount(session.id).then((n) => setGpsMeta((m) => ({ acc: m?.acc ?? 0, queued: n })));
+        }, 10000);
       } catch (e) {
         setSyncErr(e instanceof Error ? e.message : "Sync failed");
       }
@@ -104,7 +126,8 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     return () => {
       dead = true;
       clearInterval(timer);
-      unwatch();
+      clearInterval(metaTimer);
+      tracker?.stop();
       broadcastRef.current?.stop();
       syncRef.current?.close();
       syncRef.current = null;
@@ -137,6 +160,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
 
   const escalateMissed = async () => {
     const s = sessionRef.current!;
+    modeRef.current = "panic"; // Phase 1: 2-second publish cadence in emergencies
     startSiren();
     lockAlarm();
     buzz([500, 200, 500]);
@@ -177,6 +201,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const doPanic = async () => {
     const s = sessionRef.current!;
     setPanicOn(true);
+    modeRef.current = "panic"; // Phase 1: 2-second publish cadence in emergencies
     startSiren();
     lockAlarm();
     buzz([400, 100, 400, 100, 400]);
@@ -223,6 +248,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const standDownNow = async () => {
     const s = sessionRef.current!;
     setPanicOn(false);
+    modeRef.current = "session";
     stopSiren();
     broadcastRef.current?.stop();
     broadcastRef.current = null;
@@ -318,6 +344,11 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
           {clientPos && clientState !== "none" && (
             <p className={`mt-2 text-center text-sm font-semibold ${clientState === "arrived" ? "text-amber-300" : "text-sky-300"}`}>
               {clientState === "arrived" ? `${L.Client} has arrived` : `${L.Client} approaching`}
+            </p>
+          )}
+          {gpsMeta && (
+            <p className="mt-2 text-center text-xs text-zinc-600">
+              GPS ±{gpsMeta.acc} m{gpsMeta.queued > 0 ? ` · ${gpsMeta.queued} alert${gpsMeta.queued === 1 ? "" : "s"} queued — will send when connection returns` : " · signal live"}
             </p>
           )}
         </Card>

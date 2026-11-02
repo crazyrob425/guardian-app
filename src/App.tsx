@@ -8,7 +8,9 @@ import ClientScreen from "./screens/ClientScreen";
 import WatchScreen from "./screens/WatchScreen";
 import PaymentsScreen from "./screens/PaymentsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
+import { ErrorBoundary } from "react-error-boundary";
 import { store, type ActiveSession } from "./lib/store";
+import { logDiagnostic } from "./lib/db";
 import { genKey, exportKey, randomId } from "./lib/crypto";
 import { getCurrentPosition } from "./lib/geo";
 import { startSiren, stopSiren, lockAlarm, isAlarmLocked } from "./lib/audio";
@@ -159,6 +161,9 @@ export default function App() {
         </div>
       )}
       {sharePayload && <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />}
+      {/* Crash-proofing (Phase 1): a failure in any single screen shows a
+          calm fallback instead of a dead app. The SOS banner above and any
+          sounding alarm live OUTSIDE this boundary, so they keep working. */}
       {pinUnlockOpen && (
         <PinUnlock
           onUnlocked={() => { setPinUnlockOpen(false); stopSiren(); setSos(null); }}
@@ -166,7 +171,18 @@ export default function App() {
           onKeepSounding={() => setPinUnlockOpen(false)}
         />
       )}
-      {screen}
+      <ErrorBoundary
+        onError={(e) => { void logDiagnostic(e instanceof Error ? e.message : String(e), `route:${route.name}`); }}
+        fallbackRender={({ resetErrorBoundary }) => (
+          <div className="mx-auto max-w-sm px-6 py-16 text-center">
+            <p className="mb-2 text-lg font-bold text-zinc-100">Guardian hit a snag</p>
+            <p className="mb-6 text-sm text-zinc-400">This screen failed, but your session, your circle alerts, and any sounding alarm are unaffected.</p>
+            <button onClick={resetErrorBoundary} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-emerald-950">Reload this screen</button>
+          </div>
+        )}
+      >
+        {screen}
+      </ErrorBoundary>
     </div>
   );
 }

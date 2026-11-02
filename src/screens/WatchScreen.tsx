@@ -6,12 +6,15 @@ import { connectSession, type SyncHandle, type AlertMsg, type PosMsg, type State
 import { playChime, buzz } from "../lib/audio";
 import { joinBroadcast } from "../lib/webrtc";
 import { store } from "../lib/store";
-import type { LatLng } from "../lib/geo";
+import { distanceM, formatDist, etaSeconds, formatEta, type LatLng } from "../lib/geo";
 
 /** What a SAFETY CIRCLE member sees: live map, status, alerts, optional live A/V. */
 export default function WatchScreen(props: { sessionId: string; keyB64: string }) {
   const [providerPos, setProviderPos] = useState<LatLng | null>(null);
   const [clientPos, setClientPos] = useState<LatLng | null>(null);
+  const [providerMeta, setProviderMeta] = useState<{ ts: number; bat: number | null; acc?: number; seq?: number } | null>(null);
+  const [clientMeta, setClientMeta] = useState<{ spd: number | null } | null>(null);
+  const [tick, setTick] = useState(Date.now());
   const [state, setState] = useState<StateMsg | null>(null);
   const [alerts, setAlerts] = useState<AlertMsg[]>([]);
   const [watching, setWatching] = useState(false);
@@ -62,8 +65,13 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
         if (dead) { sync.close(); return; }
         syncRef.current = sync;
         sync.onPos((m: PosMsg) => {
-          if (m.from === "provider") setProviderPos(m.pos);
-          else setClientPos(m.pos);
+          if (m.from === "provider") {
+            setProviderPos(m.pos);
+            setProviderMeta({ ts: m.ts, bat: m.bat ?? null, acc: m.accuracyM, seq: m.seq });
+          } else {
+            setClientPos(m.pos);
+            setClientMeta({ spd: m.spd ?? null });
+          }
         });
         sync.onState((m) => setState(m));
         sync.onAlert((m) => {
@@ -74,7 +82,8 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
         setErr(e instanceof Error ? e.message : "Connection failed");
       }
     })();
-    return () => { dead = true; stopWatch.current?.(); syncRef.current?.close(); try { wakeLock.current?.release(); } catch { /* noop */ } };
+    const t = window.setInterval(() => setTick(Date.now()), 5000);
+    return () => { dead = true; window.clearInterval(t); stopWatch.current?.(); syncRef.current?.close(); try { wakeLock.current?.release(); } catch { /* noop */ } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -132,6 +141,30 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
             </span>
           </div>
           <MapView markers={markers} height={260} />
+          {providerMeta && (() => {
+            const ageSec = Math.max(0, Math.round((tick - providerMeta.ts) / 1000));
+            const interrupted = state?.state === "active" && ageSec > 45;
+            return (
+              <div className="mt-2 space-y-1 text-center text-xs">
+                <p className="text-zinc-500">
+                  Last update {ageSec < 5 ? "just now" : `${ageSec}s ago`}
+                  {providerMeta.acc ? ` · GPS ±${Math.round(providerMeta.acc)} m` : ""}
+                  {providerMeta.bat != null ? ` · 🔋 ${providerMeta.bat}%` : ""}
+                </p>
+                {interrupted && (
+                  <p className="font-semibold text-amber-300">⚠️ Signal interrupted — no update for {ageSec}s. Their phone may be off, out of coverage, or the app was closed.</p>
+                )}
+                {providerMeta.bat != null && providerMeta.bat <= 20 && (
+                  <p className="font-semibold text-amber-300">🔋 Their battery is low ({providerMeta.bat}%).</p>
+                )}
+              </div>
+            );
+          })()}
+          {clientPos && providerPos && (
+            <p className="mt-1 text-center text-xs text-sky-300">
+              Guest is {formatDist(distanceM(clientPos, providerPos))} away · {formatEta(etaSeconds(distanceM(clientPos, providerPos), clientMeta?.spd))} at current pace
+            </p>
+          )}
         </Card>
 
         <Card className={watching ? "" : "opacity-90"}>
