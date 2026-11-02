@@ -5,7 +5,9 @@ RESEARCH_V2.md and SETUP_AND_ACCOUNTS.md. Every policy verdict below comes
 from the primary-source sweep in `.phase7-research/play-policy.md`; every
 model, size and license in §4 was verified against official repos/docs in
 `.phase7-research/ondevice-ai.md`; the pack system in §7 is the design in
-`.phase7-research/pack-architecture.md`. Rule of the build, same as v2:
+`.phase7-research/pack-architecture.md`; device recovery and intrusion
+evidence in §8 are the design in `.phase7-research/device-recovery.md`.
+Rule of the build, same as v2:
 repurpose battle-tested open source; never reinvent; never let a downloaded
 file become code; never let an AI model touch the panic path.*
 
@@ -37,7 +39,14 @@ file become code; never let an AI model touch the panic path.*
   stack — cheap ears always on during a session, speech-to-text on
   trigger, a small LLM only when asked to think, (4) reposition the base
   app as a generic solo-worker safety app, customised per career by
-  signed, data-only **Experience Packs**.
+  signed, data-only **Experience Packs**, (5) add lost/stolen device
+  recovery and intrusion evidence (§8) — the phone itself becomes a
+  protected asset, in both flavors.
+- **Open decision — D1 (§8.8):** who can read lost-mode recovery
+  positions. **D1 — RECOMMENDED: E2EE Recovery Code (server stores
+  ciphertext + timestamps only); decision pending Rob.** Everything
+  else in §8 is designed to ship under either ruling; the console's
+  position history is the only surface that waits on it.
 
 ---
 
@@ -158,9 +167,9 @@ Three more policies close the escape hatches people usually reach for:
 
 #### (a) PLAY flavor — `flavorPlay`
 
-- Generic listing: solo-worker / solo-meeting safety (§8.4 copy rules).
+- Generic listing: solo-worker / solo-meeting safety (§9.4 copy rules).
 - The base app + the generic pack catalogue, every pack **documented in
-  the listing** like every other feature (§8.3): Real Estate & Showings,
+  the listing** like every other feature (§9.3): Real Estate & Showings,
   Field & In-Home Services, Pet & Home Sitting, Mobile Notary, Signing
   & Mobile Professionals, Dating & Social (base mode) — and a genuinely
   generic **"In-Person Client Sessions"** pack: client / appointment /
@@ -287,7 +296,7 @@ native.
   `microphone` foreground-service types in the manifest, holds
   `FOREGROUND_SERVICE_LOCATION` + `FOREGROUND_SERVICE_MICROPHONE`,
   and passes the types to `startForeground()`. Missing any piece
-  throws — the declaration set in §8.1 mirrors this exactly.
+  throws — the declaration set in §9.1 mirrors this exactly.
 - **Lifecycle is user-initiated, always.** `RECORD_AUDIO` and location
   are *while-in-use* permissions: a microphone/location FGS **cannot
   be created while the app is in the background**, and Android 15 bars
@@ -296,12 +305,18 @@ native.
   around: monitoring is armed by an explicit in-app action at session
   start (§5.1), the service runs for that session, and it stops at
   check-out, stand-down or session end. No auto-arm on geofence, no
-  resume-after-reboot — the user re-arms, every time, in the open.
+  resume-after-reboot **for microphone or camera monitoring** — the
+  user re-arms monitoring, every time, in the open. One scoped
+  exception, and it is location-only: a setup-consented recovery
+  beacon with a persistent notification may start from
+  `BOOT_COMPLETED` when the device is in lost mode (§8) — the only
+  boot-startable shape Android 15 permits, and it carries no
+  microphone or camera with it.
 - **Persistent notification** for the whole armed period ("Guardian is
   on watch — tap to open, long-press to stop"), with the Android 12+
   green mic indicator while the mic is hot. There is no covert mode
   and Phase 7 does not want one: the notification is the trust
-  artefact, and §8's Spyware defence depends on it existing.
+  artefact, and §9's Spyware defence depends on it existing.
 - **GPS:** the Phase 1 tracking engine (Traccar-style filtering,
   Kalman smoothing, adaptive cadence, Dexie offline outbox) moves its
   *feed* into the service: same PosMsg v2 semantics, same 2 s panic
@@ -494,7 +509,7 @@ three different jobs — never one LLM listening.*
     model packs are large, so this matters): "Guardian AI Pack —
     288 MB, Wi-Fi recommended," per-model sizes listed.
   - The feature is **documented in the listing** (Behavior
-    Transparency, §8.3): on-device voice control + audio monitoring
+    Transparency, §9.3): on-device voice control + audio monitoring
     are named features, not surprises.
   - A model's functions stay **within the disclosed safety features**;
     a remotely delivered model that unlocked undisclosed behaviour
@@ -531,7 +546,7 @@ first monitored session, show *their* measured %/hour on their device.
 
 ### 5.1 The only shape it ships in
 
-Non-negotiables, each one traceable to a named policy in §8 or to the
+Non-negotiables, each one traceable to a named policy in §9 or to the
 platform constraints in §3.2:
 
 1. **Session-only.** Monitoring exists only inside an armed session.
@@ -550,7 +565,7 @@ platform constraints in §3.2:
    the user opted in, a trigger-clip transcription in their own
    on-device evidence journal.
 5. **Prominent disclosure + affirmative consent** before the first
-   arming (§8.2), in the normal usage flow, naming the data and what
+   arming (§9.2), in the normal usage flow, naming the data and what
    happens to it — not buried in a privacy policy.
 
 ### 5.2 The buffer
@@ -970,7 +985,7 @@ launch.
   is checked at activation; a revoked pack disables to the generic
   base with a plain-language notice. This is the recall mechanism Play
   reviewers will ask about — it is documented in the Play review notes
-  (§8).
+  (§9).
 - **QA gate per pack release:** validator suite + the core's Vitest
   persona/intent tests parameterised by the pack's personas and
   lexicon + a scripted golden session (start → check-in → fake call →
@@ -980,14 +995,503 @@ launch.
 
 ---
 
-## 8. Play compliance checklist
+## 8. Device recovery, intrusion evidence & decoy countermeasures
+
+*This section is the design in `.phase7-research/device-recovery.md`
+(primary sources: Android developer docs, Play Policy Center, Prey /
+Cerberus precedents, RCW 9.73.030). It applies to **both flavors
+identically** except where the matrix says otherwise — a stolen phone
+is a stolen phone in every career.*
+
+Everything before this section protects the *user during a session*.
+This section protects the **device itself** — Rob's case: the phone
+is stolen or lost **during an appointment**, which for this audience
+also means the thief may be holding the session, the circle links and
+the evidence with it. Recovery is built in three layers — readiness
+before anything goes wrong (§8.2), detection and circle agency while
+a session is live (§8.3), and a web recovery console the owner drives
+from someone else's device (§8.4) — plus two intrusion-evidence
+features that fire on the phone's own PIN surfaces: wrong-PIN selfies
+(§8.5) and decoy-entry video (§8.6), both governed by one settings
+panel (§8.7) and one retention schedule (§8.8).
+
+What already exists carries most of the weight: the live encrypted
+position stream, the sync room's **retained last-known position**
+(which already survives the phone going silent), the on-device
+session trail and offline outbox, the signal-interrupted warning, and
+the Phase 6 accounts the console signs in with. The gaps this section
+fills are (a) readiness, (b) a beacon that works when *no session was
+running* or after a reboot, and (c) the console itself.
+
+### 8.1 Capability matrix (verified)
+
+Verdicts are per flavor. "CAN" = shippable as designed.
+
+| Capability | Play | Direct | Basis / notes |
+|---|---|---|---|
+| Circle sees live position during a session | CAN | CAN | Already shipped (PWA); native keeps the design. |
+| Last-known position after phone dies / loses signal | CAN | CAN | Retained room state replays last pos; every alert already carries last-known + accuracy + timestamp. |
+| Recovery beacon after reboot (armed at setup) | CAN | CAN | `BOOT_COMPLETED` may start a **location-type** FGS; Android 15 bars boot-starting microphone/camera/dataSync FGS — location is not prohibited. The beacon is location-only (§3.2's scoped exception); mic monitoring never resumes after reboot. |
+| Wake a sleeping phone to act | CAN | CAN | High-priority FCM is a listed exemption to background FGS-start restrictions. De-Googled direct phones may have no FCM — there the beacon polls on its own schedule. |
+| Remote ring at max volume | CAN | CAN | Alarm stream at max volume from the native service. Bypassing *silent* is reliable; bypassing DND is guaranteed only with the notification-policy access the wizard optionally requests (§8.2). Find Hub's "Play sound" is offered as a parallel path. |
+| Remote lock — Guardian lock/message screen | CAN | CAN | Guardian's own full-screen lock screen with owner message + callback number. |
+| Remote lock — true system lock | CAN (opt-in) | CAN (opt-in) | Via the Recovery Guard device admin (§8.2): `DevicePolicyManager.lockNow()`, user-enabled at setup with `USES_POLICY_FORCE_LOCK`. |
+| Lost message on the **system** lock screen | CANNOT | CANNOT | That is Find Hub's privileged capability; no public API writes to the system lock screen. Guardian's own lock screen is the substitute; the console deep-links Find Hub for the real thing. |
+| Remote wipe | Find Hub handoff (default) | CAN (opt-in) | Find Hub Erase is the path of record in both flavors (§8.4). Guardian-initiated `wipeData()` via Recovery Guard is an advanced, owner-only path — it matters most for de-Googled direct users, who get nothing from Find Hub. |
+| SMS command channel ("text the phone: ring") | CANNOT | CAN | Play restricts `RECEIVE_SMS` to default-SMS-handler apps (Cerberus's own statement confirms its Play build dropped SMS commands for this reason). Direct: a signed command-SMS listener is allowed. Outbound emergency SMS stays fine in both (named Play exception). |
+| SIM-change alert | CAN | CAN | Carrier/subscription change is observable on-device; the alert goes out over the data channel. Honest limit: the *new* number is usually not readable — the alert says "SIM changed," with the new carrier if available. |
+| Wrong **App PIN** → front-camera photo | CAN | CAN | Capture inside Guardian's own foreground PIN UI (§8.5). |
+| Failed **Android lockscreen** attempts → photo | CANNOT | CANNOT | Scope closed — §8.9. Not pursued in either flavor. |
+| Decoy PIN → front+back video | CAN* | CAN* | *Device-dependent: true dual-camera needs Android 11+ concurrent-camera support; the §8.6 fallback ladder covers everything else. The constraint is hardware, not policy. |
+| Block shutdown / fake shutdown screen | CANNOT | WILL NOT | No supported API intercepts the power menu for normal apps, and imitating a system shutdown is deceptive-behavior territory. Not shipped in either flavor. |
+| Uninstall protection | CANNOT | WILL NOT | Play's Malware policy: don't use device admin to block uninstallation; provide a clear, easy removal path. Guardian promises easy removal in both flavors (deactivate Recovery Guard → uninstall). |
+| Integrate with Google Find Hub (read/trigger it) | CANNOT | CANNOT | Google provides **no SDK or API for apps** — its partner program is for BLE accessory hardware. Guardian deep-links `android.com/find` and `android.com/lock` and guides setup; it cannot plug into the Find Hub network. |
+| Read whether Find Hub / theft toggles are on | CANNOT | CANNOT | No API exposes them; the wizard guides and records *user attestation*. What IS queryable (e.g. `KeyguardManager.isDeviceSecure()` — a screen lock exists) is checked directly. |
+| Read the phone's own IMEI for the ID Kit | CANNOT | CANNOT | Since Android 10, IMEI/serial are restricted to device-owner/carrier-privileged apps. The ID Kit (§8.2) is user-entered. |
+| Accessibility-service tricks for recovery | NOT USED | NOT USED | Deliberate contrast with Prey (which uses Accessibility for its lock overlay). Guardian's recovery uses **zero Accessibility APIs** in either flavor — stated in the listing and declarations (§9.5). |
+
+**Precedent check.** Prey ships on Play today *with* a user-enabled
+device admin for remote lock/wipe, opt-in evidence photos/location
+reports, and an explicit deactivation path before uninstall — the
+shape §8.2 copies. Cerberus was removed from Play for steering users
+to its off-Play full version (the standing anti-pattern behind §2.3:
+the Play build must never link to, mention, or hint at the direct
+edition), and its Play build dropped SMS commands — matching the
+matrix above.
+
+### 8.2 Layer 1 — Readiness (the Sis wizard grows a section)
+
+Nothing in recovery works if it is first configured *after* the
+phone is gone. The Phase 6 wizard gains a section — **"If your phone
+is taken"** — with a green/amber status list. Each item is either
+verified by the app or attested by the user (the app cannot read
+Google's toggles — matrix, §8.1).
+
+**Google's own anti-theft stack — guide + attest:**
+1. **Find Hub on** — confirm a Google Account is signed in, then a
+   **live self-test**: "Open android.com/find on any other device and
+   see this phone." Deep links provided.
+2. **Theft Detection Lock** — guided (Settings → Google → All
+   services → Theft protection); user attests. Its limits are stated:
+   not active while already locked, may not trigger on stable
+   Wi-Fi/Bluetooth. Guardian's snatch heuristic (§8.3) complements,
+   never replaces, it.
+3. **Offline Device Lock** — same screen; attest.
+4. **Remote Lock** — guide to set a verified phone number so
+   android.com/lock works; attest.
+5. **Identity Check** (devices that offer it) — biometrics required
+   outside trusted places for turning off Find Hub / theft protection,
+   factory reset, changing the screen lock. Recommended ON: it stops
+   a thief who watched the owner type their PIN from disabling
+   recovery.
+6. **Screen lock strength** — `KeyguardManager.isDeviceSecure()`
+   checked directly; the wizard pushes a real PIN/password over a
+   short pattern.
+
+**Guardian's own readiness:**
+7. **Recovery Guard (device admin) — OFF by default, separate opt-in
+   screen.** Grants exactly two capabilities: *lock this phone on
+   command* and *erase this phone on command* (owner-only, §8.4). The
+   consent screen names them, states what it never does (no uninstall
+   blocking, no policy control, no password rules), and how to remove
+   it (Settings → deactivate → uninstall normally). Play posture
+   follows the Malware policy's own guidance: explicit consent + easy
+   removal (§9.5, item 1).
+8. **SIM PIN** — guided (an un-PIN'd SIM moved to another phone
+   exposes the number to account-recovery abuse).
+9. **Full-screen-intent grant** — since January 2025 only
+   calling/alarm apps get `USE_FULL_SCREEN_INTENT` by default; the
+   wizard sends the user to the system setting so panic and lost-mode
+   screens can break through.
+10. **DND access (optional)** — for guaranteed ring-through (§8.1).
+    Skippable, with the consequence stated in one line.
+11. **Intrusion-evidence setup** — the §8.7 panel is walked once
+    here, including the on-device camera probe that tells the user
+    which decoy-video mode *their* phone supports (§8.6).
+
+**Device ID Kit** (encrypted vault; shown in the recovery console):
+auto-captured model, Android version, Guardian install ID; user-entered
+**IMEI**, serial, phone number, and the Google-account email used for
+Find Hub (the app cannot read the identifiers — matrix). Plus the
+**Recovery Code** — generated at setup, shown once, big and printable;
+the owner stores it (paper, password manager, or sealed with a circle
+member). It is the key that decrypts recovery data in the console
+(Decision D1, §8.8) and the step-up proof for destructive console
+actions.
+
+**Practice drill** (part of readiness, not an afterthought): from the
+wizard, the user opens the console on a second device, sees their own
+last-known position, and sends a test ring. A recovery flow first
+touched during a theft will fail; one rehearsed for 90 seconds won't.
+
+### 8.3 Layer 2 — During a session (the phone is taken mid-appointment)
+
+The spine is already shipped: the circle holds the live encrypted
+track and, thanks to retained room state, the **last-known position
+the moment the stream stops**. Recovery adds detection and circle
+agency on top:
+
+- **Snatch heuristic (on-device):** accelerometer burst + sudden
+  rapid displacement while a session is armed → Guardian raises its
+  own Panic PIN Lock screen, jumps the beacon to panic cadence (2 s),
+  and sends the circle a **"possible snatch"** alert with the position
+  at the moment of the event. This complements the OS Theft Detection
+  Lock (which only locks) with the two things it doesn't do: notify
+  the circle and mark the place.
+- **Connectivity loss while moving** extends the existing
+  signal-interrupted escalation: silence >45 s during an armed session
+  already warns the circle; the warning now includes "last seen here,
+  moving at X when contact was lost" and a one-tap route to the
+  console's mark-lost flow.
+- **Last-gasp flush:** an `ACTION_SHUTDOWN` receiver (context-
+  registered; a protected broadcast on orderly shutdowns) flushes the
+  latest fix to the outbox and, if the network allows, straight to the
+  room. Best-effort by platform design — battery pulls and forced
+  power-offs may not deliver it. Copy never promises it (§8.9).
+- **Circle-triggered actions** (E2EE commands through the session
+  room, all logged to the session journal):
+  - **Ring** — any circle member, any time during a session. Default ON.
+  - **Lock** — only if the owner enabled "my circle can lock my
+    phone" at readiness. Default OFF; it hands another person real
+    power over the device.
+  - The intrusion-evidence triggers of §8.5–§8.6 (lost-mode and
+    threshold sends) run in this layer too.
+- **Session-less theft:** if no session was running, the armed-at-
+  setup recovery beacon (§8.1) is what the console sees — lower
+  cadence, last-known between fixes, stepping up when the console
+  sets lost mode (§8.4).
+
+### 8.4 Layer 3 — Recovery console (web, any device, Supabase account)
+
+Same codebase as the app; the owner signs in with their Phase 6
+magic-link account on any browser — a friend's phone, a library PC.
+Rob's case starts with "my phone is gone," so the console assumes
+*no trusted device is available*.
+
+**Mark lost — server-side effects, in order:**
+1. Set the device's **lost flag** (picked up via high-priority FCM
+   and on the beacon's next connect): beacon cadence steps up,
+   on-device evidence triggers (§8.5–§8.6) arm their lost-mode sends,
+   Guardian lock/message screen engages.
+2. **Revoke the live session / circle / client links** — the
+   guardian-sync room for any in-progress session is closed
+   server-side, so a thief holding the phone can't ride the session
+   link or see the circle.
+3. **Revoke that device's Supabase app sessions** (the account stays
+   usable from the console; the phone's tokens die).
+4. **Notify the circle** ("X marked their phone lost — last seen …").
+5. **Start the retention clock** (§8.8).
+
+**Console home:** live map while the beacon reports; otherwise the
+last-known fix with accuracy circle, timestamp, and battery-at-
+capture. Stale data is labeled stale — never rendered as live.
+
+**Actions:**
+- **Ring** (alarm stream, max volume; a note shows if DND access
+  wasn't granted).
+- **Lock now** — Recovery Guard `lockNow()` if enabled; otherwise
+  the Guardian lock/message screen. If neither is armed, the console
+  says so and deep-links Find Hub's Secure device.
+- **Show lost message + callback number** — rendered on Guardian's
+  lock screen (message text + a callback number that is *not* the
+  stolen phone's). Writing to the system lock screen stays a Find Hub
+  handoff (matrix).
+- **Share recovery link** — view-only, expiring, revocable (same
+  fragment-token pattern as circle links), for family or police.
+- **Export incident pack** — trail as JSON/GPX plus a plain-language
+  incident sheet (times, last-known, IMEI from the Device ID Kit)
+  formatted for a police report or carrier call.
+- **Mark found** — ends lost mode, restores the normal beacon, starts
+  the §8.8 purge countdown with an immediate-delete button.
+
+**Erase — the honest handoff.** The console's Erase button explains
+in two sentences and deep-links: Find Hub's Erase (android.com/find)
+is the supported path — it factory-resets, and, honestly stated,
+*tracking stops afterwards*, so the console nags the user to export
+the incident pack first. For owners who enabled Recovery Guard (and
+de-Googled direct users with no Find Hub at all), a Guardian-initiated
+wipe is available behind Recovery Code entry + typed confirmation +
+a delay-cancel window (default 10 minutes, cancellable from the
+console) — an irreversible action gets friction proportional to its
+cost. Guardian never claims an erase it didn't perform: until the
+device acknowledges, status reads "erase requested, not yet
+confirmed."
+
+### 8.5 Wrong-PIN intruder selfies — Guardian's OWN App PIN
+
+Rob's requirement, with his clarification: *"i meant our pin."* The
+capture happens **inside Guardian's own foreground PIN UI** — the PIN
+pad is on screen, the app is in the foreground, and `CAMERA` is an
+ordinary permission Guardian already holds for its emergency A/V
+features. CameraX/Camera2 captures to a non-preview surface, so the
+pad's look doesn't change. **Identical in both flavors** — the
+distribution channel is irrelevant.
+
+Surfaces covered — **every incorrect App PIN entry**, on:
+- the app-unlock PIN pad, and
+- the **panic-unlock pad** (the v0.4 Panic PIN Lock stop paths) — the
+  pad a thief meets mid-session.
+
+**Semantics per PIN type — the three PINs are not the same event:**
+- **Wrong PIN (no match):** capture, log, count toward the attempt
+  threshold.
+- **Duress PIN:** the entry already silences the app and fires the
+  silent coercion alert. **Photo capture on duress entry is OFF by
+  default and a separate opt-in (§8.7)** — because the system camera
+  indicator (§8.9) is visible to whoever is standing over the user,
+  and a duress moment is the worst moment to advertise a camera. If
+  the owner opts in anyway, the readiness copy says exactly that
+  before they can turn it on.
+- **Decoy PIN:** **never a selfie.** Decoy entry is handled by §8.6
+  (video); a still capture is deliberately not stacked onto it — the
+  decoy only works if nothing about the phone's behaviour betrays it.
+
+**Storage, sending, retention:**
+- Encrypted on-device only, in the evidence vault, in a "Security
+  attempts" log the owner can view in-app. **Rolling cap ~20 photos;
+  auto-delete after 7 days** (both configurable, §8.7). Most captures
+  will be the *owner's own typos* — the in-app copy says so plainly,
+  so the log reads as a security feature, not an accusation machine.
+- **A photo leaves the phone only when one of these is true** (E2EE
+  to the circle / recovery console — BNE never holds a readable copy):
+  1. **Lost mode is active** (§8.4), or
+  2. **A session is active AND the attempt threshold is reached**
+     (default 3 wrong entries — below that, typos stay on the phone), or
+  3. **Duress entry** — only if the §8.7 opt-in is on.
+  Outside those conditions the photo *cannot* be sent; there is no
+  background trickle of attempt photos to anyone.
+- When a photo *is* sent, the circle alert frames it accurately: "3
+  wrong PIN tries on [device] — most recent photo" — evidence for the
+  owner, not a public accusation.
+
+**Play / Data Safety:** `CAMERA` is already declared and justified;
+the capture adds no new permission. **Photos become a declared Data
+Safety data type** (§9.5, item 3): on-device-only storage is not
+"collected" under Google's definition; the conditional sends above
+are collection/sharing events and are declared as such. The §8.7
+panel's prominent disclosure runs before the feature is first enabled
+— consent first, capture second (the User Data pattern in §9.2).
+Listing copy discipline: "takes a photo when someone guesses your
+Guardian PIN wrong" — never "catches intruders," and never any claim
+about the phone's own lockscreen (§8.9).
+
+### 8.6 Decoy-PIN countermeasure video (front + back, on decoy entry)
+
+**Trigger:** the decoy PIN is entered and the fake Notes decoy opens.
+Recording starts automatically and runs for the configured duration
+(default **5 minutes**) while the decoy UI behaves exactly as it
+always has.
+
+**Concurrent-camera feasibility (verified against Android docs):**
+- True simultaneous front+back is a **hardware capability, not a
+  guarantee**. From Android 11, Camera2 exposes concurrent camera
+  sets — `PackageManager.FEATURE_CAMERA_CONCURRENT` advertises
+  support, `CameraManager.getConcurrentCameraIds()` returns the
+  supported combinations, `isConcurrentSessionConfigurationSupported()`
+  validates a concrete configuration at runtime. CameraX wraps the
+  same capability (`ConcurrentCamera`, dual-camera only), with max
+  resolution **720p or 1440p** depending on the device's mandatory
+  concurrent stream combinations.
+- What the platform guarantees on concurrent-capable devices is
+  paired streams on the order of **one camera at s720p alongside the
+  other at up to s1440p**. Full dual-1080p recording is *not* part of
+  the guaranteed set; some flagships exceed the floor, many devices
+  don't reach it.
+- Support concentrates in flagship-class phones. Guardian makes **no
+  model promises**: the readiness wizard *probes the actual phone*
+  (§8.7's test button), records which mode this device earned, and
+  shows the user the result. The contract is "probe, don't assume."
+- **Recording without a preview:** Camera2/CameraX recording targets
+  do not require a visible preview surface. The decoy Notes UI stays
+  on screen, untouched; the app is in the foreground throughout — no
+  FGS-type games, no background-camera problem.
+- **The indicator cannot be hidden** (§8.9): the green dot shows for
+  the entire recording and the session lands in the Privacy Dashboard.
+  The feature is evidence-gathering, not invisibility — spec and copy
+  say so.
+- **Thermal/battery:** dual ISP + dual encode for 5–10 minutes is the
+  heaviest load Guardian ever puts on the phone. Recording stops
+  cleanly on thermal signals or critical battery, sealing what exists.
+
+**Fallback ladder** (selected automatically by the probe; the user
+can override the *strategy* in §8.7):
+1. **True dual** — front + back simultaneously, 720p each by default
+   (1440p-class where the concurrent set supports it and the user
+   picked High).
+2. **Back video + front photo bursts** — continuous back video; a
+   front still every ~10 s.
+3. **Fast alternation** — one camera at a time, ~15 s slices
+   alternating front/back.
+4. **Single camera** — front only or back only (user's §8.7 choice).
+5. **Photo burst only** — if even single video fails (storage/
+   thermal), stills every few seconds. Degraded, never silent: the
+   attempts log records which mode actually ran.
+
+**Files, sizes, storage:**
+- **Segmented recording:** 60-second sealed segments per camera
+  (separate files + a manifest tying them to the decoy-entry event),
+  each encrypted into the evidence vault on close — a shutdown or
+  battery pull mid-recording loses at most the open segment.
+- **Size math** (engineering estimates, audio excluded): 720p ≈
+  **~190–300 MB per camera per 5 min** → dual ≈ **0.4–0.6 GB**; 1080p
+  → dual **>1 GB**. Hence: default quality cap **720p** in dual mode,
+  a **vault space guard** (recording refuses to eat the last 1 GB of
+  free storage; evidence evicts only by its own retention rule), and
+  HEVC roughly halving sizes where the device supports it.
+- **Audio — separate toggle, OFF by default, legal warning attached.**
+  Video-only capture records no conversations. With audio on, WA law
+  applies: Washington is an **all-party consent** state (RCW
+  9.73.030) — recording a *private conversation* without every
+  participant's consent is a gross misdemeanor and the recording is
+  inadmissible. The §8.7 toggle carries this in plain language, and
+  the copy says "check your state" rather than pretending WA is
+  universal.
+
+**Upload policy:** same framework as §8.5, configured separately
+(§8.7): vault-only by default until a trigger condition holds —
+**lost mode active**, or **session active + decoy event** (a decoy
+entry during a live session is never benign, so session context alone
+arms the send — no threshold needed for the decoy case). Sends are
+E2EE, chunked/resumable (these files are hundreds of MB), and the
+console shows per-segment arrival so partial evidence is visible as
+partial.
+
+### 8.7 Settings panel — "Intrusion & Evidence"
+
+Rob's rule: **every countermeasure in §8.5–§8.6 is editable and
+toggleable here.** Labels below are the user-facing plain-language
+strings; defaults ship as listed. This panel is the features' control
+surface — it lands in the same build step as the features themselves
+(§10, step 7.1R).
+
+**Access control for the panel itself:** Settings opens only behind
+the correct App PIN or biometrics. Duress and decoy entries can never
+reach it, and changing any *upload* setting requires the real PIN —
+a person holding the unlocked phone cannot loosen evidence rules
+behind the owner's back.
+
+| Setting (plain-language label) | Control | Default | Why this default |
+|---|---|---|---|
+| "Take a photo when someone enters my PIN wrong" | On/Off | **On** | The core evidence feature; cheap, on-device, and the owner asked for it. |
+| "When wrong-PIN photos can be sent to my circle / recovery console" | Never / Only if my phone is marked lost / During a session or when lost / Always | **Only if marked lost** | Keeps the published "your data stays on your phone" promise true until the owner declares the emergency. |
+| "Wrong tries before it counts as an attack" (threshold) | 1–10 | **3** | Separates the owner's typos from a guessing attack before anything is sent or escalated. |
+| "Also take a photo if my duress PIN is used" | On/Off | **Off** | Android's green camera dot is visible to the person forcing the entry (§8.5/§8.9). Opt-in only, behind a warning screen. |
+| "Keep wrong-PIN photos for" | 1 / 3 / 7 / 30 days | **7 days** | Long enough to notice a pattern; short enough that a log of your own typos doesn't pile up. Rolling cap ~20 photos regardless. |
+| "Record video when my decoy PIN is used" | On/Off | **On** | A decoy entry is never the owner's normal path — if it happens, evidence matters. |
+| "Decoy video length" | 1 / 2 / 5 / 10 min | **5 min** | Rob's specified duration; balances evidence value against file size (§8.6) and battery/thermal load. |
+| "Decoy video cameras" | Both if my phone can / Front only / Back only | **Both if my phone can** | The ask, with honesty about hardware: the phone is probed and the actual mode is shown (§8.6). |
+| "If both cameras can't run together" (fallback behaviour) | Back video + front photos / Switch back and forth / Front only / Back only | **Back video + front photos** | Keeps continuous video of the surroundings *and* periodic faces — the best evidence mix the widest set of phones can do (§8.6). |
+| "Decoy video quality" | Standard (720p) / High (up to 1080p) | **Standard (720p)** | Dual-mode platform ceiling is ~720p on most devices; High can exceed 1 GB for 5 minutes dual (§8.6). |
+| "Record sound with decoy video" | On/Off | **Off** | WA all-party consent law (RCW 9.73.030) — §8.6. Toggle carries the legal warning inline. |
+| "When decoy videos can be sent" | Never / Only if marked lost / During a session or when lost / Always | **Only if marked lost** | Same reasoning as photos; note §8.6: during a *session*, a decoy entry arms the send at any setting except Never. |
+| "Alert my circle after repeated wrong PINs" | On/Off | **On** | A guessing attack during a session is exactly what the circle exists for. |
+| "Test my decoy camera setup" | Button | — | Runs the §8.6 probe + a 5-second test recording and *shows the owner* which mode their phone got and what the green dot looks like. No surprises later. |
+
+Panel footer (fixed copy, not a setting): *"Android always shows a
+green dot while a camera or microphone is on. Guardian can't hide it,
+and neither can anyone else's app."*
+
+### 8.8 Retention schedule & Decision D1
+
+**Plain statement of the change:** until now Guardian's servers have
+held *no* position history — the sync rooms forward ciphertext and
+retain only the latest state. Lost-mode recovery creates, for the
+first time, a reason to retain position data beyond the moment: a
+phone beaconing while lost, whose owner reads the trail from the
+console. The retention rules below are therefore **part of the
+feature**, not an appendix — and they go in the privacy policy
+verbatim (§9.5, item 4). Retention that isn't published doesn't count.
+
+> **D1 — RECOMMENDED: E2EE Recovery Code (server stores ciphertext +
+> timestamps only); decision pending Rob.**
+>
+> The device encrypts beacon fixes with a key derived from the
+> setup-generated Recovery Code (§8.2); the server stores ciphertext
+> + minimal metadata (timestamps, accuracy). The console decrypts
+> in-browser after the owner enters the code. BNE still cannot read
+> anyone's location — the published beta guarantee ("BNE does not
+> access users' GPS data") survives intact. Cost, stated plainly: if
+> the owner loses the code *and* never stored/sealed it, the console
+> shows metadata ("last contact 14:02, accuracy 30 m" without
+> coordinates) and recovery leans on the circle's retained last-known
+> + Find Hub. The wizard's storage drill exists precisely to prevent
+> this.
+>
+> **Rejected alternative: server-readable positions.** Simpler
+> console, no code — and it breaks the beta-blog promise the day it
+> ships. Not recommended at any convenience level.
+>
+> Circle-visible data is unaffected by D1 either way: during sessions
+> the circle already holds what it holds, under the existing E2EE
+> session design.
+
+**Retention schedule (applies under the D1 recommendation; identical
+if Rob overrides):**
+- **Normal times:** the beacon's last-known record is a *single
+  overwritten per-device snapshot* — no history accumulates. Ever.
+- **Lost mode:** the beacon trail is retained for the lost episode
+  **plus 7 days after Mark found**, then auto-deleted server-side;
+  **hard cap 30 days** in lost mode without renewal by the owner.
+- **Evidence (photos/video):** governed by §8.7's on-device rules;
+  anything sent to the console under lost mode follows the same
+  lost-episode + 7-day rule, with immediate delete available in the
+  console.
+- **Owner controls:** export anytime (§8.4 incident pack); purge-now
+  button in the console; account deletion purges everything, no
+  residue.
+
+### 8.9 Honest limits (binding copy constraints)
+
+These ship in the product copy, not just in this blueprint:
+
+1. Guardian **cannot** join or read Google's Find Hub network,
+   trigger Find Hub actions, or put text on the system lock screen.
+   It guides, deep-links, and covers the gaps Find Hub leaves
+   (circle, console, evidence).
+2. Guardian **cannot** photograph failed *Android lockscreen*
+   attempts (see the closing note below), block or fake a shutdown,
+   or survive a factory reset — no consumer app can. Find Hub Erase
+   is the wipe of record.
+3. A powered-off, SIM-removed, or Faraday-bagged phone reports
+   nothing until it reconnects; last-known + accuracy + timestamp is
+   the honest product then.
+4. Every camera feature is **visible** while it runs: since Android
+   12 the system shows a green camera/microphone indicator whenever
+   any app uses a sensor, logs the use in the Privacy Dashboard, and
+   **apps cannot hide this**. On the wrong-PIN pad that costs little;
+   on duress/decoy surfaces it is a real tactical fact — hence the
+   defaults in §8.5/§8.7 and the readiness copy: *"Android always
+   shows a small green dot when the camera is on. Anyone holding
+   your phone can see it."* Any copy implying covert capture is
+   prohibited in both flavors (§9.5, item 8).
+5. Recovery Guard (device admin) is opt-in, narrow (lock + wipe on
+   the owner's command), and removable in two steps. The Play build
+   never links to, names, or hints at the direct edition (the
+   Cerberus removal is the standing warning, §2.3).
+
+**The lockscreen note (scope closed, Rob 2026-11-02).** Normal apps
+cannot observe the **system lockscreen's** failed attempts or
+photograph them. The only historical route is
+`DeviceAdminReceiver.onPasswordFailed` (user-enabled legacy device
+admin with watch-login), and even that delivers only a *failure
+notification*: since Android 9 a background or locked app cannot use
+the camera at all, so **no photo at the moment of a failed lockscreen
+attempt is possible on modern Android in either flavor** —
+sideloading changes policy exposure, not platform APIs. Guardian is
+not enabling device admin to chase a notification that can't carry a
+photo. End of scope: the selfie feature is the App PIN's, per Rob's
+correction (§8.5).
+
+---
+
+## 9. Play compliance checklist
 
 *Everything below traces to `.phase7-research/play-policy.md`. File
-declarations **early, in parallel with the prototype** (§7 build
+declarations **early, in parallel with the prototype** (§10 build
 sequence) — background-location review can take weeks, and it gates
 the launch, not the code.*
 
-### 8.1 Declarations & Console filings
+### 9.1 Declarations & Console filings
 
 - [ ] **Background location** — *Permissions and APIs that Access
   Sensitive Information* + Background Location policy. Play Console →
@@ -1039,7 +1543,7 @@ the launch, not the code.*
   already keeps the app itself out of SMS; only file this if that
   changes.
 
-### 8.2 Prominent disclosures (in-app, in normal flow, before consent)
+### 9.2 Prominent disclosures (in-app, in normal flow, before consent)
 
 - [ ] **Before first location permission:** what is tracked (during
   sessions), who sees it (the user's chosen circle, via encrypted
@@ -1067,7 +1571,7 @@ the launch, not the code.*
   Any future "watch your partner/client" feature is a BLOCKER under
   this section and is not on any roadmap.
 
-### 8.3 Behaviour transparency & downloads
+### 9.3 Behaviour transparency & downloads
 
 - [ ] **No hidden, dormant or undocumented features** (Deceptive
   Behavior §5): the pack system itself **and the pack catalogue
@@ -1084,7 +1588,7 @@ the launch, not the code.*
 - [ ] **Listing/app never link to or unlock the direct edition**
   (§2.1) — checked as part of release QA, not left to memory.
 
-### 8.4 Listing copy rules
+### 9.4 Listing copy rules
 
 - [ ] **No overclaimed safety claims** (Deceptive Behavior —
   Misleading Claims): copy may promise alerts to the user's own
@@ -1096,7 +1600,7 @@ the launch, not the code.*
   and stays verbatim in spirit.
 - [ ] **Permissions match promoted features only** (Permissions
   policy): no sensitive permission for an undisclosed, unimplemented
-  or disallowed feature — declarations (§8.1) and listing copy are
+  or disallowed feature — declarations (§9.1) and listing copy are
   written from the same feature list.
 - [ ] **Zero adult/sexual keywords, imagery or entertainer framing**
   anywhere in listing or Play binary (Sexual Content policy, §2.1).
@@ -1114,11 +1618,46 @@ the launch, not the code.*
 
 ---
 
-## 9. Build sequence — Phase 7.1 → 7.5
+### 9.5 Recovery & intrusion-evidence filings (from §8)
+
+- [ ] **Device-admin consent copy + commitments** (Malware — Device
+  Admin): Recovery Guard (§8.2) ships with an explicit opt-in screen
+  naming its capabilities only (lock/wipe on the owner's command),
+  **no uninstall blocking**, and an easy deactivation path documented
+  in-app *and* in the listing.
+- [ ] **Background-location declaration covers the lost-mode beacon**
+  as the *same* declared feature (one-feature form discipline,
+  §9.1); the declaration demo video is updated to show mark-lost
+  (§8.4), not just session tracking.
+- [ ] **Data Safety additions:** **Photos** (wrong-PIN selfies —
+  collected/shared only under §8.5's three conditions) and **lost-mode
+  location retention** per §8.8 are declared; on-device-only items
+  remain not-collected per Google's definition, and the
+  substantiation page is updated to match.
+- [ ] **Privacy policy gains:** the §8.8 retention schedule verbatim,
+  the §8.5/§8.6 evidence-send conditions, and the Recovery Code / D1
+  data-access statement (who can read recovery positions, exactly as
+  decided).
+- [ ] **Explicit negative declarations:** the Play build requests
+  **no SMS permissions** for recovery and uses **no Accessibility
+  APIs** for recovery (§8.1) — stated in the manifest review notes
+  and listing, not just true of the code.
+- [ ] **Full-screen-intent declaration** + the wizard's user-grant
+  flow for `USE_FULL_SCREEN_INTENT` (§8.2, readiness item 9), filed
+  alongside the §9.1 FGS declarations.
+- [ ] **Prominent-disclosure copy for the Intrusion & Evidence
+  panel** (§8.7) — including the camera-indicator honesty line —
+  reviewed against the User Data pattern in §9.2 (before consent,
+  in normal flow, naming the data).
+- [ ] **Listing-claims discipline for recovery:** no "guaranteed
+  recovery," no shutdown-protection claims, no lockscreen-capture
+  claims, and **no covert-capture language anywhere** (§8.9).
+
+## 10. Build sequence — Phase 7.1 → 7.5
 
 Each step has a **verification gate**. A step is done when its gate
 passes on real hardware, not when its code compiles. Declarations
-(§8.1) are filed in parallel from 7.1 onward.
+(§9.1) are filed in parallel from 7.1 onward.
 
 ### 7.1 — Capacitor prototype APK
 Wrap the existing app; thin `GuardianNative` plugin; monitor service
@@ -1129,6 +1668,31 @@ publishing at cadence, the missed-check-out timer still fires, the
 alarm still sounds and PIN-locks. Plus one mid-range device passing
 the same script. If the service can't survive WebView death, nothing
 else in Phase 7 exists — this gate is the phase.
+
+### 7.1R — Device recovery & intrusion evidence (parallel track)
+
+Depends only on the 7.1 native shell + Phase 6 accounts — **not** on
+the AI steps (7.2/7.3) and not on packs (7.4) — so it lands in
+parallel with the voice work. Scope: the §8.2 readiness extension
+(Find Hub/theft-toggle guided setup, Recovery Guard opt-in, Device ID
+Kit + Recovery Code, practice drill); the lost-mode beacon +
+mark-lost server effects (§8.4: room closure, device-token
+revocation, retention clock); the recovery console (map, ring, lock,
+incident pack, erase handoff); wrong-PIN selfies (§8.5); decoy-entry
+video with the device probe + fallback ladder (§8.6); and the
+**Intrusion & Evidence settings panel (§8.7)** — the features'
+control surface ships in the same step, not after them.
+**Gate:** scripted real-device test — from a second device, mark-lost
+steps the beacon up, ring sounds, lock engages, and session-room +
+device-token revocation is verified server-side; wrong-PIN captures
+land in the vault and a threshold send fires *only* under the §8.5
+conditions (lost mode / session + threshold); a decoy entry records
+in the mode the probe assigned to *this* device, with segments sealed
+after a mid-recording kill; every §8.7 toggle is proven to gate its
+feature (off means off, tested, including upload settings behind the
+real PIN). Console position *history* ships only in the §8.8
+D1-recommended E2EE shape — until Rob rules on D1, the console shows
+the last-known snapshot and metadata, not a readable trail.
 
 ### 7.2 — Voice commands v1
 Deterministic path only: sherpa streaming ASR + grammar/intent parser
@@ -1188,7 +1752,7 @@ base accuracy is the bottleneck.
 
 ---
 
-## 10. Risks & honest limits
+## 11. Risks & honest limits
 
 1. **YAMNet cannot tell distress from consensual noise, a TV, or
    laughter — and may never reliably do so.** This is the phase's
@@ -1216,7 +1780,7 @@ base accuracy is the bottleneck.
 4. **Play review is a timeline risk, not just a rejection risk.**
    Background-location + per-type FGS declarations with demo videos
    can take weeks and one-feature-at-a-time iteration. Filed early
-   (§8/§9), they run parallel to the build; filed late, they *become*
+   (§9/§10), they run parallel to the build; filed late, they *become*
    the launch date. Category hostility (RESEARCH_V2's standing
    warning) is answered by the §2 flavor split — which is itself
    **Rob's pending decision**, and the Play door does not exist until
@@ -1245,7 +1809,7 @@ base accuracy is the bottleneck.
    market some users will expect a professional monitoring centre
    that dispatches emergency services. Guardian alerts **the user's
    own circle** — by design, for privacy reasons the generic packs
-   don't change. §8.4's copy rules exist so the first bad review
+   don't change. §9.4's copy rules exist so the first bad review
    doesn't write itself; positioning, not features, carries this.
 9. **Packs are copyable; the moat is underneath them.** If packs
    succeed, bSafe-class competitors can add "profiles" within a
@@ -1273,7 +1837,10 @@ whisper.cpp, Vosk, LiteRT-LM, FunctionGemma/Gemma/Qwen model cards,
 Capacitor plugin docs, Android 14/15 FGS docs),
 `.phase7-research/pack-architecture.md` (manifest schema, CAN/CANNOT
 lists, launch scoring — NAR, BLS, NNA, Rover market evidence — and the
-Noonlight/bSafe/Life360, SHEQSY-class and Tether RE competitor scan).
+Noonlight/bSafe/Life360, SHEQSY-class and Tether RE competitor scan),
+`.phase7-research/device-recovery.md` (Find Hub / device-admin /
+concurrent-camera primary docs, Prey and Cerberus precedents, RCW
+9.73.030).
 Internal: README.md (v0.5–v0.11.1 feature history), BLUEPRINT_V2.md,
 SETUP_AND_ACCOUNTS.md in this repo.*
 
