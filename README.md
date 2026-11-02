@@ -250,3 +250,19 @@ Private project. All rights reserved.
   the neighbor (leak through her ceiling). Each has its own voice profile, pretext,
   and reply scripts. Picking a persona in Settings also sets the caller name.
 - Tests: 31/31 (persona scripts completeness + intent classifier).
+
+## v0.11.x — Phase 6: Setup wizard (Sis) + free accounts (2026-11-02)
+- **First-run wizard:** eight steps guided by "Sis" — a friendly, sassy big-sister
+  persona: welcome + privacy deal, free account, profile, PINs (main/duress/decoy),
+  circle (≥1 required), permissions, alarm sound + fake-call persona, test alert +
+  graduation into the Home tour. Progress persists per step (resumes mid-wizard);
+  first-run owners are routed to it automatically; Home shows a "Sis is waiting"
+  banner until setup is complete.
+- **Accounts (Supabase project `guardian-accounts`, ref gbvukahdkuxpqkocyput,
+  us-west-1):** magic-link sign-in; `profiles` (identity + entitlement ONLY) and
+  `beta_claims` tables with RLS own-row policies; auth redirect URLs pinned to
+  guardian-app.blacklisted.studio. Entitlement cached on-device with a 30-day
+  offline grace; during beta every plan unlocks everything — safety is never
+  paywalled. Settings gained an account card (plan, beta-grant status, sign out).
+- v0.11.1 fixed the Supabase URL/anon key to the values read from the live project
+  (verified: auth health 200, profiles REST reachable, RLS returns no rows to anon).
