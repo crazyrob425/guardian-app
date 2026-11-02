@@ -194,9 +194,11 @@ Private project. All rights reserved.
 - Tests: 23/23.
 
 ## v0.8.0 — Phase 4: Face-lift (2026-11-01)
-- **MapLibre GL + OpenFreeMap** vector maps replace Leaflet/raster (dark style, no API key,
-  no watermark; MapLibre lazy-loads as its own chunk). CARTO was already retired in v0.7.1
-  after it began watermarking tiles.
+- **Maps:** a MapLibre/OpenFreeMap vector build was tried and REVERTED the same night —
+  OpenFreeMap's style endpoints return 404 through too many networks (including our test
+  browser), and a safety app never ships a blank map. Leaflet + OSM raster (restored in
+  v0.8.1) stays until Phase 5's self-hosted Protomaps PMTiles on R2, when MapLibre returns
+  with zero external style dependency. CARTO remains retired (watermarking, v0.7.1).
 - **Update toast:** a waiting service-worker update now surfaces as a one-tap "Update now"
   banner instead of silently running yesterday's build.
 - **First-run safety tour** (driver.js): five stops on Home — panic/duress, check-in/out
