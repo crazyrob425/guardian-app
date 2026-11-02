@@ -29,6 +29,9 @@ export interface Settings {
   checkOutGraceMin: number;
   arrivalRadiusM: number;
   fakeCallerName: string; // who the fake rescue call pretends to be from
+  fakeCallTheme: "auto" | "ios" | "samsung" | "pixel" | "classic"; // call-screen skin
+  fakeCallPersona: string; // live-caller persona id (see lib/personas.ts)
+  fakeCallLive: boolean; // live AI voice conversation vs recorded script
   syncTransport: "auto" | "cloud" | "mqtt"; // Phase 3 protocol v2 transport
   cloudSyncUrl: string; // wss:// base of the Guardian Cloud sync worker
   language: "en" | "es"; // Phase 4 i18n (safety surfaces)
@@ -73,6 +76,9 @@ export const DEFAULT_SETTINGS: Settings = {
   checkOutGraceMin: 5,
   arrivalRadiusM: 150,
   fakeCallerName: "Mom",
+  fakeCallTheme: "auto",
+  fakeCallPersona: "mom",
+  fakeCallLive: true,
   syncTransport: "auto",
   cloudSyncUrl: "wss://guardian-sync.blacklisted.studio",
   language: "en",

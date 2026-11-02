@@ -12,6 +12,7 @@ import { identityFingerprint } from "../lib/identity";
 import i18n from "../lib/i18n";
 import { resetTour } from "../lib/tour";
 import { hasPasskey, registerPasskey, removePasskey, passkeySupported } from "../lib/passkey";
+import { PERSONAS, getPersona } from "../lib/personas";
 
 function DecoyPinRow(props: { s: Settings; set: <K extends keyof Settings>(k: K, v: Settings[K]) => void }) {
   const [pin, setPin] = useState("");
@@ -275,6 +276,26 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
           <Field label="Fake rescue call — caller name (who the call pretends to be from)">
             <input className={inputCls} value={s.fakeCallerName} onChange={(e) => set("fakeCallerName", e.target.value)} placeholder="e.g. Mom" />
           </Field>
+          <Field label="Fake call — who's calling (live AI persona)">
+            <select className={inputCls} value={s.fakeCallPersona} onChange={(e) => { const p = getPersona(e.target.value); set("fakeCallPersona", p.id); set("fakeCallerName", p.name); }}>
+              {PERSONAS.map((p) => <option key={p.id} value={p.id}>{p.avatar} {p.name} — {p.blurb}</option>)}
+            </select>
+          </Field>
+          <Field label="Fake call screen — match my phone">
+            <select className={inputCls} value={s.fakeCallTheme} onChange={(e) => set("fakeCallTheme", e.target.value as Settings["fakeCallTheme"])}>
+              <option value="auto">Auto-detect my phone</option>
+              <option value="ios">iPhone (iOS)</option>
+              <option value="samsung">Samsung (One UI)</option>
+              <option value="pixel">Google Pixel / stock Android</option>
+              <option value="classic">Classic (neutral)</option>
+            </select>
+          </Field>
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-sm text-zinc-200">Live AI conversation <span className="text-zinc-500">(the caller talks back and listens — free, runs on your phone; needs mic permission in Chrome/Safari, or tap the reply chips)</span></span>
+            <button onClick={() => set("fakeCallLive", !s.fakeCallLive)} className={`relative h-8 w-14 shrink-0 rounded-full ${s.fakeCallLive ? "bg-emerald-500" : "bg-white/10"}`}>
+              <span className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-all ${s.fakeCallLive ? "left-7" : "left-1"}`} />
+            </button>
+          </label>
           <label className="flex items-center justify-between">
             <span className="text-sm text-zinc-200">Discreet mode <span className="text-zinc-500">(neutral wording everywhere)</span></span>
             <button onClick={() => set("discreetMode", !s.discreetMode)} className={`relative h-8 w-14 rounded-full ${s.discreetMode ? "bg-emerald-500" : "bg-white/10"}`}>

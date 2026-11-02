@@ -232,3 +232,21 @@ Private project. All rights reserved.
   pipeline build, and Phase 4 proved external style hosts unreliable), and on-device
   transcription (model download size is a product decision, not a code gap).
 - Tests: 26/26.
+
+## v0.10.0 — Fake Call v2: phone-matched themes + free live AI caller (2026-11-01)
+- **Call-screen themes:** the fake incoming call can now wear the skin of her actual
+  phone — iPhone (iOS), Samsung (One UI), Google Pixel / stock Android, or Classic —
+  with Auto-detect from the device user-agent. Different chrome per theme: iOS
+  Remind Me / Message row + Accept label, One UI Message/Remind/Block row + teal
+  wash, Pixel Material pill buttons + initial avatar.
+- **Live AI caller (free, on-device):** the caller now talks back. speechSynthesis
+  voices the persona; SpeechRecognition (Chrome / Safari) listens to her replies;
+  a branching script routes her answers by intent (agree / stall / question /
+  distress / goodbye). No server, no API key, no per-minute cost — it is the
+  phone's own speech stack. Mic denied or unsupported → tap-to-reply chips keep
+  the conversation alive. Recorded Mom script remains when live mode is off.
+- **Five default personas:** Mom (burst pipe), Jess the bestie/roommate (sick dog +
+  locked out), Sis (stranded car), Dana the manager (work emergency), Mrs. Alvarez
+  the neighbor (leak through her ceiling). Each has its own voice profile, pretext,
+  and reply scripts. Picking a persona in Settings also sets the caller name.
+- Tests: 31/31 (persona scripts completeness + intent classifier).

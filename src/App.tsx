@@ -277,6 +277,9 @@ export default function App() {
       {fakeRinging && (
         <FakeCall
           callerName={settings.fakeCallerName || "Mom"}
+          personaId={settings.fakeCallPersona}
+          theme={settings.fakeCallTheme}
+          live={settings.fakeCallLive}
           onDone={() => { clearFakeCall(); setFakeRinging(false); }}
         />
       )}
