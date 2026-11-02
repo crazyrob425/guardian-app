@@ -93,7 +93,7 @@ function SecurityExtras(props: { s: Settings; set: <K extends keyof Settings>(k:
 
       <Card className="space-y-3">
         <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Decoy mode</p>
-        <p className="text-sm text-zinc-400">A third PIN that opens a harmless fake Notes app instead of Guardian — for the moment someone makes you “just unlock it.” Guardian stays hidden; no alert fires. Triple-tap the Notes title to get back to the real lock screen.</p>
+        <p className="text-sm text-zinc-400">A third PIN that opens a harmless fake Notes app instead of Guardian — for the moment someone makes you “just unlock it.” Guardian stays hidden; no alert fires. Triple-tap the Notes title — or press and hold it — to get back to the real lock screen.</p>
         <DecoyPinRow s={s} set={set} />
       </Card>
 
