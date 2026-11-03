@@ -42,11 +42,12 @@ file become code; never let an AI model touch the panic path.*
   signed, data-only **Experience Packs**, (5) add lost/stolen device
   recovery and intrusion evidence (§8) — the phone itself becomes a
   protected asset, in both flavors.
-- **Open decision — D1 (§8.8):** who can read lost-mode recovery
-  positions. **D1 — RECOMMENDED: E2EE Recovery Code (server stores
-  ciphertext + timestamps only); decision pending Rob.** Everything
-  else in §8 is designed to ship under either ruling; the console's
-  position history is the only surface that waits on it.
+- **Decision D1 (§8.8) — DECIDED 2026-11-03 (Rob):** E2EE with a
+  user-chosen Recovery Code. During setup the recovery-code field
+  auto-populates with the app PIN the user just set — by default the
+  Recovery Code *is* the app PIN — and the user may instead enter a
+  separate custom code for added security. The server stores
+  ciphertext + timestamps only; BNE cannot read anyone's positions.
 
 ---
 
@@ -1113,11 +1114,15 @@ Google's toggles — matrix, §8.1).
 auto-captured model, Android version, Guardian install ID; user-entered
 **IMEI**, serial, phone number, and the Google-account email used for
 Find Hub (the app cannot read the identifiers — matrix). Plus the
-**Recovery Code** — generated at setup, shown once, big and printable;
-the owner stores it (paper, password manager, or sealed with a circle
-member). It is the key that decrypts recovery data in the console
-(Decision D1, §8.8) and the step-up proof for destructive console
-actions.
+**Recovery Code** — chosen by the user during setup (Decision D1,
+§8.8, DECIDED 2026-11-03): the setup form's recovery-code field
+auto-populates with the app PIN the user just entered, so by default
+the Recovery Code *is* the app PIN; the user may replace it with a
+separate custom code only they know, for added security. It is the
+key that decrypts recovery data in the console and the step-up proof
+for destructive console actions. A forgotten custom code cannot be
+reset by anyone — the recovery data it protects is unrecoverable
+without it (§8.8).
 
 **Practice drill** (part of readiness, not an afterthought): from the
 wizard, the user opens the console on a second device, sees their own
@@ -1402,31 +1407,52 @@ console. The retention rules below are therefore **part of the
 feature**, not an appendix — and they go in the privacy policy
 verbatim (§9.5, item 4). Retention that isn't published doesn't count.
 
-> **D1 — RECOMMENDED: E2EE Recovery Code (server stores ciphertext +
-> timestamps only); decision pending Rob.**
+> **D1 — DECIDED 2026-11-03 (Rob): E2EE Recovery Code (server stores
+> ciphertext + timestamps only).**
 >
 > The device encrypts beacon fixes with a key derived from the
-> setup-generated Recovery Code (§8.2); the server stores ciphertext
-> + minimal metadata (timestamps, accuracy). The console decrypts
+> user-chosen Recovery Code (§8.2); the server stores ciphertext +
+> minimal metadata (timestamps, accuracy). The console decrypts
 > in-browser after the owner enters the code. BNE still cannot read
 > anyone's location — the published beta guarantee ("BNE does not
-> access users' GPS data") survives intact. Cost, stated plainly: if
-> the owner loses the code *and* never stored/sealed it, the console
-> shows metadata ("last contact 14:02, accuracy 30 m" without
-> coordinates) and recovery leans on the circle's retained last-known
-> + Find Hub. The wizard's storage drill exists precisely to prevent
-> this.
+> access users' GPS data") survives intact.
+>
+> **The code is the user's, not the system's (Rob's design):** during
+> setup, the recovery-code field auto-populates with the main app PIN
+> the user just entered — by default the Recovery Code *is* the
+> user's app PIN. The user may instead enter a separate custom
+> recovery code that only they know, for added security.
+>
+> **Key derivation & console hardening (binding):** (1) the
+> encryption key is derived from the recovery code via a slow, salted
+> KDF (e.g. Argon2id or scrypt with a per-user random salt), never a
+> fast raw hash; (2) code entry in the console is attempt-throttled /
+> rate-limited server-side with escalating delays, so online guessing
+> is impractical.
+>
+> **Strength, stated honestly:** a PIN-length default code is only as
+> strong as the PIN against an *offline* attack on stolen ciphertext
+> — the slow KDF raises the cost of each guess but cannot make a
+> short numeric code strong. The PIN default is the zero-friction
+> option (nothing new to remember or store); the custom code is the
+> high-security option. Rob chose to offer both with the PIN as the
+> default — that tradeoff is decided, not pending.
+>
+> **Cost, stated plainly:** if the owner forgets a custom code, the
+> trail is unrecoverable — nobody can reset it, including BNE. The
+> console then shows metadata only ("last contact 14:02, accuracy
+> 30 m" without coordinates) and recovery leans on the circle's
+> retained last-known + Find Hub.
 >
 > **Rejected alternative: server-readable positions.** Simpler
 > console, no code — and it breaks the beta-blog promise the day it
-> ships. Not recommended at any convenience level.
+> ships. Rejected in the ruling.
 >
-> Circle-visible data is unaffected by D1 either way: during sessions
-> the circle already holds what it holds, under the existing E2EE
-> session design.
+> Circle-visible data is unaffected by D1: during sessions the circle
+> already holds what it holds, under the existing E2EE session
+> design.
 
-**Retention schedule (applies under the D1 recommendation; identical
-if Rob overrides):**
+**Retention schedule (applies under D1 as decided):**
 - **Normal times:** the beacon's last-known record is a *single
   overwritten per-device snapshot* — no history accumulates. Ever.
 - **Lost mode:** the beacon trail is retained for the lost episode
@@ -1690,9 +1716,12 @@ conditions (lost mode / session + threshold); a decoy entry records
 in the mode the probe assigned to *this* device, with segments sealed
 after a mid-recording kill; every §8.7 toggle is proven to gate its
 feature (off means off, tested, including upload settings behind the
-real PIN). Console position *history* ships only in the §8.8
-D1-recommended E2EE shape — until Rob rules on D1, the console shows
-the last-known snapshot and metadata, not a readable trail.
+real PIN). Console position *history* ships in the §8.8 D1-decided
+E2EE shape: ciphertext server-side, in-browser decryption with the
+user-chosen Recovery Code (PIN-default or custom, §8.2/§8.8). Outside
+lost mode, the console's default view remains the last-known snapshot
+and metadata — that is the normal-times presentation, not a pending
+decision.
 
 ### 7.2 — Voice commands v1
 Deterministic path only: sherpa streaming ASR + grammar/intent parser
