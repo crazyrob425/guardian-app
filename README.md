@@ -1,12 +1,13 @@
 <div align="center">
 
-<img src="docs/assets/hero-banner.webp" alt="Guardian — luxury safety engineering" width="100%" />
+<img src="docs/assets/renegade-guardian-logo.webp" alt="Renegade Guardian — the rogue-angel mark: winking guardian, cracked tilted halo, gold wing, and gold shield with an emerald location pin" width="440" />
 
-# 🛡️ G U A R D I A N
+# 🛡️ R E N E G A D E  G U A R D I A N
 
 ### *The bodyguard in your purse. The bouncer in your pocket. The big sister who never sleeps.*
 
-**A safety platform engineered exclusively for in-person providers & adult entertainers —
+**Renegade Guardian is the flagship edition of the Guardian safety platform by Blacklisted Niche Entertainment —
+engineered exclusively for in-person entertainers, providers, and solo gig workers who meet clients 1-on-1,
 built to a standard the billion-dollar apps never bothered to reach, because they were never built for you.**
 
 <br/>
@@ -42,7 +43,7 @@ built to a standard the billion-dollar apps never bothered to reach, because the
 ---
 
 > [!IMPORTANT]
-> **Guardian is not a panic-button app.** Panic buttons are a commodity — a dozen apps with our name alone sell one. Guardian is a **complete safety + business operating system** for the women (and men) who meet clients in person: screening, deposits, bookings, live protected sessions, a circle that *answers back*, a fake call that *talks back*, a decoy that lies to your captor's face, and a dead-man's switch for the night everything goes wrong. Nothing else on the market ships this stack. We checked. Obsessively. It's kind of our thing.
+> **Renegade Guardian is not a panic-button app.** Panic buttons are a commodity — a dozen apps with our name alone sell one. Renegade Guardian is a **complete safety + business operating system** for the women (and men) who meet clients in person: screening, deposits, bookings, live protected sessions, a circle that *answers back*, a fake call that *talks back*, a decoy that lies to your captor's face, and a dead-man's switch for the night everything goes wrong. Nothing else on the market ships this stack. We checked. Obsessively. It's kind of our thing.
 
 > [!TIP]
 > **New here?** Skip to [⚡ 60-Second Start](#-60-second-start) to install, or [💁‍♀️ Meet Sis](#-meet-sis--the-wizard-who-sets-you-up) for the guided tour. Developers: [🏗️ Architecture](#️-architecture--the-protocol) is where the good stuff lives.
@@ -52,16 +53,17 @@ built to a standard the billion-dollar apps never bothered to reach, because the
 ## 📑 Table of Contents
 
 - [The 10-Second Pitch](#-the-10-second-pitch)
-- [Why Guardian Exists](#-why-guardian-exists--the-origin-story)
+- [Why Renegade Guardian Exists](#-why-renegade-guardian-exists--the-origin-story)
 - [Who It's For](#-who-its-for)
 - [⚡ 60-Second Start](#-60-second-start)
 - [💁‍♀️ Meet Sis — The Wizard](#-meet-sis--the-wizard-who-sets-you-up)
 - [👑 The Feature Atlas](#-the-feature-atlas)
 - [📞 Fake Call v2 — The One That Talks Back](#-fake-call-v2--the-one-that-talks-back)
+- [⚙️ Settings — PINs, Alerts & Private Push](#️-settings--pins-alerts--private-push)
 - [🏗️ Architecture & The Protocol](#️-architecture--the-protocol)
 - [🧠 The What-If Protocols (Failsafe Bible)](#-the-what-if-protocols--the-failsafe-bible)
 - [🔐 Security & Privacy Blueprint](#-security--privacy-blueprint)
-- [⚔️ Guardian vs. The World](#️-guardian-vs-the-world--top-5-competitors)
+- [⚔️ Renegade Guardian vs. The World](#️-renegade-guardian-vs-the-world--top-5-competitors)
 - [🎁 Beta Testers Wanted](#-beta-testers-wanted--free-pro-for-a-year)
 - [💎 Guardian Pro](#-guardian-pro--the-paid-tier-philosophy)
 - [🗺️ Walkthroughs](#️-walkthroughs)
@@ -78,18 +80,18 @@ built to a standard the billion-dollar apps never bothered to reach, because the
 
 ## ⚡ The 10-Second Pitch
 
-You're meeting someone you found on the internet, alone, in a place nobody knows you're going. The big safety apps want a subscription, your real name, your location history on *their* servers, and a prayer that their alert actually fires (read their reviews — bring popcorn). **Guardian gives you a protected session with military-grade encryption, a human circle that confirms they're coming, screening tools that flag the burner phone before you answer it, deposits that filter the time-wasters, and five separate ways out of a bad room** — free, account-optional, and holding custody of exactly **none** of your personal data. There is no Guardian database of your life. There can't be. We never built one.
+You're meeting someone you found on the internet, alone, in a place nobody knows you're going. The big safety apps want a subscription, your real name, your location history on *their* servers, and a prayer that their alert actually fires (read their reviews — bring popcorn). **Renegade Guardian gives you a protected session with military-grade encryption, a human circle that confirms they're coming, screening tools that flag the burner phone before you answer it, deposits that filter the time-wasters, and five separate ways out of a bad room** — free, account-optional, and holding custody of exactly **none** of your personal data. There is no Renegade Guardian database of your life. There can't be. We never built one.
 
 <div align="center">
-<img src="docs/assets/night-shift.webp" alt="Guardian on the night shift" width="82%" />
+<img src="docs/assets/night-shift.webp" alt="Renegade Guardian on the night shift" width="82%" />
 <br/><sub><i>Built for the night shift. Artwork: BNE design studio.</i></sub>
 </div>
 
 ---
 
-## 🌑 Why Guardian Exists — The Origin Story
+## 🌑 Why Renegade Guardian Exists — The Origin Story
 
-Guardian was born at **Blacklisted Niche Entertainment (BNE)** in Seattle, out of a simple, infuriating observation: the entire personal-safety industry builds for joggers, realtors, and worried parents — and treats in-person providers and adult entertainers, the people statistically *most* exposed to exactly the danger these apps claim to solve, as a liability to be deplatformed rather than a customer to be protected.
+Renegade Guardian was born at **Blacklisted Niche Entertainment (BNE)** in Seattle, out of a simple, infuriating observation: the entire personal-safety industry builds for joggers, realtors, and worried parents — and treats in-person providers and adult entertainers, the people statistically *most* exposed to exactly the danger these apps claim to solve, as a liability to be deplatformed rather than a customer to be protected.
 
 App stores reject their apps. Payment processors close their accounts (**63% of workers have lost a bank or payment account over their work** — FSC / SexWorkCEO, 2023). Safety apps paywall the features that matter at the moment of need, sell location data to brokers, or quietly die unmaintained, leaving the women who trusted them with a dead icon on their home screen.
 
@@ -98,20 +100,20 @@ So we built the thing ourselves, to the standard we'd want protecting our own pe
 1. **Provider-first, not provider-tolerant.** Screening, deposits, no-show tracking, and discreet mode aren't add-ons. They're the foundation.
 2. **Privacy as architecture, not as a promise.** Promises get breached. Architecture can't confess what it never collected.
 3. **Safety is never paywalled.** Not during beta, not at Pro launch, not ever. The panic button is sacred.
-4. **Reliability is the product.** An alert that fires "most of the time" is a decoration. Guardian is engineered — and tested, brutally, nightly — around the alert *always* firing.
+4. **Reliability is the product.** An alert that fires "most of the time" is a decoration. Renegade Guardian is engineered — and tested, brutally, nightly — around the alert *always* firing.
 
-Guardian started as a panic button in a browser tab. It is now, at v0.11.1, a six-phase engineering program: a GPS reliability core, a trust protocol, private encrypted infrastructure, a business suite, an AI-voiced rescue caller, and a setup wizard with more personality than most humans we know. This README is its dossier.
+Renegade Guardian started as a panic button in a browser tab. It is now, at v0.11.2, a six-phase engineering program: a GPS reliability core, a trust protocol, private encrypted infrastructure, a business suite, an AI-voiced rescue caller, and a setup wizard with more personality than most humans we know. This README is its dossier.
 
 ---
 
 ## 🎯 Who It's For
 
-| You are… | Guardian gives you… |
+| You are… | Renegade Guardian gives you… |
 |---|---|
 | An **in-person provider / escort** | Screening verdicts before you reply, deposit-first bookings, protected sessions, a bad-client log that lives only on your phone |
 | A **cam model doing in-person appearances** | Discreet mode (nothing on screen outs you), fake-call exits, a circle that watches without an audience |
 | A **dancer / entertainer doing private parties** | Check-in/check-out escalation, dead-man's switch, safe places on the way home |
-| A **masseuse, photographer, notary, realtor — anyone who meets strangers alone for money** | The same core, because danger doesn't check your job title (and our roadmap's experience packs are coming for your workflow specifically) |
+| A **solo gig worker who meets clients 1-on-1** — masseuse, photographer, traveling stylist, private instructor | The same core, because danger doesn't check your job title |
 | **The friend in someone's circle** | A watch link that actually shows you what's happening, buttons to say *"I'm on my way"* — and an app that nags you if nobody answers her |
 
 ---
@@ -119,13 +121,13 @@ Guardian started as a panic button in a browser tab. It is now, at v0.11.1, a si
 ## ⚡ 60-Second Start
 
 > [!NOTE]
-> No app store. No download queue. No account required to be protected. Guardian is a **PWA** — it installs from your browser straight to your home screen, because app stores keep rejecting apps built for this industry and we refuse to ask their permission.
+> No app store. No download queue. No account required to be protected. Renegade Guardian is a **PWA** — it installs from your browser straight to your home screen, because app stores keep rejecting apps built for this industry and we refuse to ask their permission.
 
 | Step | Do this | Time |
 |---|---|---|
 | 1 | Open **[guardian-app.blacklisted.studio](https://guardian-app.blacklisted.studio)** on your phone | 5 s |
 | 2 | Browser menu → **Add to Home Screen** (iPhone: Share → Add to Home Screen) | 10 s |
-| 3 | Open Guardian → **Sis** (your big sister, below) walks you through everything | ~3 min |
+| 3 | Open Renegade Guardian → **Sis** (your big sister, below) walks you through everything | ~3 min |
 | 4 | Start a session, share the watch link with your person, go make your money | — |
 
 That's it. You're protected before your coffee cools.
@@ -135,22 +137,22 @@ That's it. You're protected before your coffee cools.
 ## 💁‍♀️ Meet Sis — The Wizard Who Sets You Up
 
 <div align="center">
-<img src="docs/assets/sis-portrait.webp" alt="Sis — your big sister inside Guardian" width="300" />
+<img src="docs/assets/sis-portrait.webp" alt="Sis — your big sister inside Renegade Guardian" width="300" />
 <br/><sub><i>Sis. Older. Sassier. Has seen things. Will not let you skip the duress PIN without a speech.</i></sub>
 </div>
 
-Most apps hand you a settings page and wish you luck. Guardian hands you **Sis**: a friendly, funny, zero-judgment big-sister guide who walks every new user through an 8-step first-run wizard — and saves your progress after every step, because setups get interrupted by life and she knows it.
+Most apps hand you a settings page and wish you luck. Renegade Guardian hands you **Sis**: a friendly, funny, zero-judgment big-sister guide who walks every new user through an 8-step first-run wizard — and saves your progress after every step, because setups get interrupted by life and she knows it.
 
 | Step | Sis covers | Her energy |
 |---|---|---|
-| 1 · **Welcome** | What Guardian is + the privacy deal, in plain English | *"I don't do snitches. 🤐"* |
+| 1 · **Welcome** | What Renegade Guardian is + the privacy deal, in plain English | *"I don't do snitches. 🤐"* |
 | 2 · **Free account** | Magic-link sign-in (no password!) + your beta free-year claim | *"No account = no free Pro year later. Big sister said what she said. 🤷‍♀️"* |
 | 3 · **Profile** | Your name, language (EN/ES), discreet mode | Warm, two minutes, done |
 | 4 · **PINs** | Main PIN (**required**), duress PIN, decoy PIN | *"It opens the app like normal… while secretly screaming for help. 😈"* |
 | 5 · **Your circle** | Add at least one human — she will not let you skip this with zero | *"Nobody does this job alone, babe."* |
 | 6 · **Permissions** | Location, notifications, home-screen install — with honest reasons | Zero guilt, all facts |
 | 7 · **Sound & caller** | Audition the alarm sounds, pick your fake-call persona | The help-cry gets described as *"Chills. Actual chills."* |
-| 8 · **Test drive** | Fires a **real test alert** to your circle, shows your protection checklist, graduates you into the guided Home tour | *"You're not on your own. Guardian's got you. And so do I. 💋"* |
+| 8 · **Test drive** | Fires a **real test alert** to your circle, shows your protection checklist, graduates you into the guided Home tour | *"You're not on your own. Renegade Guardian's got you. And so do I. 💋"* |
 
 Bail mid-wizard and a **"Sis is waiting"** banner on Home resumes you on the exact step. Finish it, and she never nags again. Probably.
 
@@ -158,7 +160,7 @@ Bail mid-wizard and a **"Sis is waiting"** banner on Home resumes you on the exa
 
 ## 👑 The Feature Atlas
 
-*Everything below is live in production today — not a roadmap, not a "coming soon" page, not vapor. Version 0.11.1.*
+*Everything below is live in production today — not a roadmap, not a "coming soon" page, not vapor. The feature set shipped in v0.11.1, current build v0.11.2.*
 
 ### 🆘 Core Safety — The Non-Negotiables
 
@@ -168,7 +170,7 @@ Bail mid-wizard and a **"Sis is waiting"** banner on Home resumes you on the exa
 | **Mandatory check-in / check-out** | Every appointment runs a timer; miss check-out and the escalation ladder starts after *your* grace period | The appointment itself is the safety device — no separate "start tracking" to forget |
 | **Panic PIN lock** | The instant panic fires, every way to silence it locks behind your app PIN — including stopping the audio engine itself | An attacker holding your phone **cannot shut it up**. The duress PIN silences it — and secretly alerts your circle that you're being coerced |
 | **Duress PIN** | A second PIN that unlocks the app like everything is fine… while firing a silent coercion alert with your location | For the worst sentence in the world: *"Just unlock it for me."* |
-| **Decoy mode** | A **third** PIN that opens a boring fake Notes app. No Guardian. No alerts. No evidence Guardian exists | Coerced unlocks get grocery lists, not your safety system |
+| **Decoy mode** | A **third** PIN that opens a boring fake Notes app. No Renegade Guardian. No alerts. No evidence Renegade Guardian exists | Coerced unlocks get grocery lists, not your safety system |
 | **Dead-man's switch** | Optional proof-of-life timer (2–24 h). No check-in → *"Are you OK?"* → 60-second countdown → full SOS with location | For the night everything goes wrong and nobody knows yet |
 | **Six alarm sounds + yours** | Police siren, piercing shriek, dual-voice BNE security warning, a research-built realistic **help cry**, air raid, klaxon — or your own audio file | The help cry was engineered from scream-perception science (roughness that recruits the amygdala) and bystander research — it says the words that make strangers act |
 | **Client arrival alerts** | Send the client a discreet one-way link; get *"approaching"* / *"arrived"* geofence pings | Know he's actually here before you open the door — he never sees you |
@@ -179,7 +181,7 @@ Bail mid-wizard and a **"Sis is waiting"** banner on Home resumes you on the exa
 |---|---|
 | **GPS engine** | Traccar-grade filter chain: 65 m accuracy gate, teleport rejection, Kalman smoothing; adaptive cadence (5 s session / 2 s panic) |
 | **Encrypted sync** | Every payload AES-256-GCM; the session key exists **only** inside the watch link's URL fragment — browsers never send fragments to servers, so no server ever sees a key. Ever |
-| **Guardian Cloud rooms** | Our own Cloudflare Durable Object rooms replaced the public MQTT broker (still available as fallback transport) — private infrastructure, late-joiner replay, 64 KB frame caps, **nothing logged** |
+| **Renegade Guardian Cloud rooms** | Our own Cloudflare Durable Object rooms replaced the public MQTT broker (still available as fallback transport) — private infrastructure, late-joiner replay, 64 KB frame caps, **nothing logged** |
 | **Offline outbox** | Composed an alert in a dead zone? It's encrypted and queued on-device, then flushed in order the second signal returns. The alert is never lost — it is *delayed at worst* |
 | **Signal-interrupted detection** | If her phone goes silent >45 s mid-session, watchers see a warning — silence itself is treated as information |
 | **Address-in-alerts** | Alerts carry a plain-language locality ("near Pike Place, Seattle") alongside GPS — because "47.6062, -122.3321" helps nobody at 2 a.m. |
@@ -215,7 +217,7 @@ Plus **coded quick messages** — because sometimes you can't type: 🍕 *"I'm O
 | **Phone intel** (libphonenumber-js) | VoIP / toll-free / burner-pattern numbers get flagged before you answer |
 | **Disposable-email detection** | Full 10,115-domain snapshot runs **on-device** — the check is never logged anywhere, by design |
 | **6-point screening checklist** | The community-standard verification flow, per client, saved |
-| **Screenshot OCR** | Snap his booking message; Guardian extracts the number/email/handle for you to confirm — then files it (tesseract.js, on-device, lazy-loaded) |
+| **Screenshot OCR** | Snap his booking message; Renegade Guardian extracts the number/email/handle for you to confirm — then files it (tesseract.js, on-device, lazy-loaded) |
 | **Verdicts & flags** | OK / Caution / Avoid, searchable log, last-seen stamps |
 | **⭐ Regulars book** | Favorite the good ones; re-contact permission tracking (not asked / yes / **never**) |
 | **Follow-up flow** | A deniable, permission-based 3-step flow — thank-you → review ask → re-invite — copy-and-stamp, sent by *you* |
@@ -229,7 +231,7 @@ Plus **coded quick messages** — because sometimes you can't type: 🍕 *"I'm O
 | **Deposit-first payments** | BTCPay Server invoices (self-hosted, no KYC, nobody can close it) and/or Stripe payment links; **QR codes** on invoices for in-person scans |
 | **Earnings ledger** | Income / expenses / mileage, monthly totals, **CSV export for taxes** — and it *never leaves the phone*, so your books can't out you |
 | **Evidence vault** | Booking screenshots and confirmations stored as on-device blobs, plus a one-tap session-journal export (your trail, your file, your call) |
-| **Safe places** | Named spots you can run to; mid-session, Guardian shows the nearest one and its distance |
+| **Safe places** | Named spots you can run to; mid-session, Renegade Guardian shows the nearest one and its distance |
 | **Discreet mode** | Every label in the app renames itself to innocent vocabulary — "guest log," "appointment." Nosy eyes see a scheduling app |
 
 ---
@@ -238,14 +240,14 @@ Plus **coded quick messages** — because sometimes you can't type: 🍕 *"I'm O
 
 Every safety app has a fake call. Ours has a **cast**.
 
-**Phone-matched themes.** A fake call only works if it looks like *your* phone's real call screen. Pick your skin — or let Guardian auto-detect it:
+**Phone-matched themes.** A fake call only works if it looks like *your* phone's real call screen. Pick your skin — or let Renegade Guardian auto-detect it:
 
 | Theme | The details we sweated |
 |---|---|
 | **iPhone (iOS)** | Remind Me / Message row, "Accept" wording, iOS type and spacing |
 | **Samsung (One UI)** | Teal wash, "Phone • Incoming call" header, Message / Remind / Block row |
 | **Google Pixel** | Material pill buttons, initial-letter avatar, "Send a message" chip |
-| **Classic** | The neutral Guardian original |
+| **Classic** | The neutral Renegade Guardian original |
 
 **A live AI caller — free, forever, on-device.** No Twilio bill, no OpenAI tab, no server: the caller runs on your phone's own built-in speech engine. She *speaks* in character, *listens* to your actual spoken replies, and answers from a branching script that routes what you say — agree, stall, question, distress, goodbye each get their own in-character lines. Mic denied? Tap-to-reply chips keep the scene alive. She is, hands down, the most committed actress in your contacts.
 
@@ -261,14 +263,49 @@ Pick a persona in Settings (it sets the caller name automatically), schedule the
 
 ---
 
+## ⚙️ Settings — PINs, Alerts & Private Push
+
+Everything that protects you is configured in one place, in plain language, and every change saves instantly. Three systems matter most:
+
+### 🔢 The Three-PIN System
+
+Renegade Guardian does not have "a PIN." It has three, and each one tells a different story to a different audience:
+
+| PIN | What it does | When you use it |
+|---|---|---|
+| **Real PIN** *(required)* | Unlocks the real app — and it is the **only** PIN that can stop a sounding panic. Once panic fires, the Panic PIN Lock engages: the alarm cannot be silenced, stopped, or dismissed without this PIN | Every day — and the one number nobody else ever gets |
+| **Duress PIN** | Unlocks the app like everything is fine, **silences the alarm — and fires a silent alert with your location to your whole circle** | When someone is forcing you to unlock it or shut it up, and you need help sent without a sound |
+| **Decoy PIN** | Opens a **fake Notes app** — grocery lists, reminders, nothing else. No safety features, no alerts, no sign Renegade Guardian exists on the phone | When someone just wants to look through your phone |
+
+Set all three during setup (Sis walks you through it, and she has opinions), and pick duress and decoy numbers you could plausibly "mistype" under stress — never your real PIN with one digit changed.
+
+### 🚨 Alert Stack Settings
+
+- **Your circle** — who receives alerts, and in what order the confirmation ladder escalates when nobody answers.
+- **The free alert stack** — private push, the watch page, and your phone's own messaging layers stack automatically; there is no paid tier between you and an alert going out.
+- **Alarm sounds** — six built-in sounds (police siren, piercing shriek, dual-voice security warning, the realistic help cry, air raid, klaxon) or your own audio file. Audition every one before you trust it.
+- **Dead-man's switch** — proof-of-life interval (2–24 hours) and your check-in / check-out grace period.
+- **Fake call** — your AI caller persona, your phone-matched call-screen theme, and scheduled exit calls.
+- **Discreet mode, language (EN/ES), and profile** — how the app names itself on your screen, and how it speaks to you.
+
+### 📡 Private Push — Our Own Servers
+
+Alerts now run over **Renegade Guardian's own private, self-hosted push servers**. No third-party notification service sits in the alert path: the buzz your circle feels comes from infrastructure we run ourselves, and the pings are **content-free** — a wake-up signal, never a location, a name, or a link. Fewer hands in the chain means fewer companies that could ever see, log, delay, or lose your worst moment.
+
+### 🔒 The Privacy Promise, In Settings And Everywhere Else
+
+**Blacklisted Niche Entertainment never accesses your GPS, your clients, or your security data.** Your locations, client log, bookings, ledger, and vault live on your device, encrypted at rest and in flight, and the app collects **no telemetry**. Settings cannot change that — there is no switch, on our side or yours, that sends your life to us. It was built that way on purpose.
+
+---
+
 ## 🏗️ Architecture & The Protocol
 
-Guardian runs on infrastructure we control end-to-end, chosen so that **the system physically cannot betray its users**:
+Renegade Guardian runs on infrastructure we control end-to-end, chosen so that **the system physically cannot betray its users**:
 
 ```mermaid
 flowchart TB
     subgraph PHONE["📱 Her phone — the vault"]
-        UI["Guardian PWA<br/>React 18 + TypeScript"]
+        UI["Renegade Guardian PWA<br/>React 18 + TypeScript"]
         DEXIE["Dexie / IndexedDB<br/>clients · ledger · bookings · vault · trail"]
         KEYS["Per-session AES-256 key<br/>born here, dies here"]
         IDENT["X25519 identity keypair<br/>never uploaded"]
@@ -299,7 +336,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant H as Her phone
-    participant R as Guardian room (DO)
+    participant R as Renegade Guardian room (DO)
     participant C as Circle watcher
     H->>H: Generate session ID + 256-bit key
     H->>C: Share watch link (key in #fragment only)
@@ -323,7 +360,7 @@ sequenceDiagram
 | Rooms log nothing | Relay code keeps last state in memory-class storage only, for late joiners | `worker-sync/` in this repo |
 | No personal-data database | Clients/ledger/vault live in IndexedDB on the device | Sign in from a second phone: it's empty. That's the point |
 | Accounts see only identity | Supabase schema: email, display name, plan, Stripe customer ID | `SETUP_AND_ACCOUNTS.md` in this repo |
-| Push leaks nothing | ntfy pings are **content-free** — a buzz, never a location or link | `src/lib/notify.ts` |
+| Push leaks nothing | Alerts run over Renegade Guardian's **own private, self-hosted push servers** — pings are **content-free**, no third-party notification service sits in the path, and a ping never carries a location or link | `src/lib/notify.ts` |
 
 ---
 
@@ -331,20 +368,20 @@ sequenceDiagram
 
 Luxury is a tailor who measured twice. Safety is an engineer who asked *"and then what?"* fifty times. Every one of these scenarios is **handled in shipped code**, not in a meeting:
 
-| # | What if… | Guardian's answer |
+| # | What if… | Renegade Guardian's answer |
 |---|---|---|
 | 1 | Her phone has **no signal** when she panics | The alert is composed, encrypted, and queued on-device; it fires the instant any signal returns. Nothing is composed-and-lost, ever |
 | 2 | She drives **through a tunnel** mid-session | Watchers see a *signal-interrupted* warning after 45 s of silence — and the trail backfills from the on-device log |
 | 3 | The attacker **grabs the phone and tries to silence it** | Panic PIN lock: every stop path routes through her PIN. The audio engine itself refuses to stop |
 | 4 | He forces her to **unlock it "properly"** | Duress PIN: unlocks like normal, silently alerts the circle with her location |
-| 5 | He just wants to **look through the app** | Decoy PIN opens a fake Notes app full of groceries. Guardian was never here |
+| 5 | He just wants to **look through the app** | Decoy PIN opens a fake Notes app full of groceries. Renegade Guardian was never here |
 | 6 | She's **incapacitated** and can't press anything | Dead-man's switch counts down from her last proof-of-life and fires the SOS itself |
 | 7 | **Nobody answers** her alert | 3 minutes of silence re-fires push + SMS to the entire circle. And the watch page keeps screaming — chime, vibration, notification, wake lock |
-| 8 | Her **watcher closes the tab** | Content-free ntfy push still buzzes their phone; the retained room state replays the session the moment they reopen the link |
+| 8 | Her **watcher closes the tab** | A content-free push from our own private push servers still buzzes their phone; the retained room state replays the session the moment they reopen the link |
 | 9 | The **GPS drifts** in a downtown canyon | 65 m accuracy gate + Kalman smoothing + teleport rejection — the map shows her, not a teleporting ghost |
 | 10 | Her **battery is dying** | Battery % rides every position frame; watchers get a low-battery warning before it becomes a silence mystery |
 | 11 | The **app crashes** mid-session | Error boundaries wrap every screen; the panic banner and alarm live *outside* the boundary. A crashed screen cannot take the alarm down with it |
-| 12 | She's running a **stale build** | Update toast: a one-tap "new version is ready" instead of silently running yesterday's Guardian |
+| 12 | She's running a **stale build** | Update toast: a one-tap "new version is ready" instead of silently running yesterday's Renegade Guardian |
 | 13 | The **client no-shows** | Booking board marks it; his client-log record counts it — forever, on her phone |
 | 14 | He pays with a **burner and a throwaway email** | Screening flags VoIP numbers and disposable domains on-device before she ever replies |
 | 15 | She needs to **leave NOW but politely** | Fake call — scheduled or instant — with a caller who talks back (see above; Jess is *very* convincing) |
@@ -355,7 +392,7 @@ Luxury is a tailor who measured twice. Safety is an engineer who asked *"and the
 | 20 | The **phone is stolen** mid-session | The session lives in the link her circle already holds; her PINs lock the app; her account holds nothing worth the pawn shop |
 
 > [!WARNING]
-> Guardian is a safety *system*, not a force field, and it is **not a substitute for emergency services**. If you are in immediate danger and can call your local emergency number safely, call it. Guardian's job is to make sure that if you *can't* — or if calling openly would make it worse — somebody who loves you knows exactly where you are and that you need them. Now.
+> Renegade Guardian is a safety *system*, not a force field, and it is **not a substitute for emergency services**. If you are in immediate danger and can call your local emergency number safely, call it. Renegade Guardian's job is to make sure that if you *can't* — or if calling openly would make it worse — somebody who loves you knows exactly where you are and that you need them. Now.
 
 ---
 
@@ -365,13 +402,13 @@ Luxury is a tailor who measured twice. Safety is an engineer who asked *"and the
 
 | Data | Lives | Encrypted | Who can read it |
 |---|---|---|---|
-| Live session positions | In flight through Guardian rooms; on-device trail | AES-256-GCM, per-session key | Only link holders (her circle) |
+| Live session positions | In flight through Renegade Guardian rooms; on-device trail | AES-256-GCM, per-session key | Only link holders (her circle) |
 | Client log / screening | Her phone (Dexie) | Device storage | Her. Full stop |
 | Earnings ledger | Her phone | Device storage | Her (and her tax person, via *her* CSV export) |
 | Evidence vault | Her phone, as blobs | Device storage | Her |
 | Bookings / safe places | Her phone | Device storage | Her |
 | Account profile | Supabase (`guardian-accounts`) | TLS + RLS own-row | Her (email + plan only — there is nothing else in the row) |
-| Alert push pings | ntfy topic (random, unguessable) | Content-free by design | Topic holders see a buzz. That's all a buzz contains |
+| Alert push pings | Renegade Guardian's own private, self-hosted push servers (random, unguessable topic) | Content-free by design | Topic holders see a buzz. That's all a buzz contains |
 
 **The cryptographic spine:** per-session **AES-256-GCM** keys generated on-device → **Argon2id** PIN hashing (libsodium; legacy hashes verify and migrate silently) → **X25519** device identity with sealed-box primitives ready for paired-device key delivery → **WebAuthn passkeys** as a local unlock factor, verified on-device, PIN always retained → magic-link account auth (no password database exists to breach — say it again for the breach headlines in the back).
 
@@ -379,11 +416,11 @@ Luxury is a tailor who measured twice. Safety is an engineer who asked *"and the
 
 ---
 
-## ⚔️ Guardian vs. The World — Top 5 Competitors
+## ⚔️ Renegade Guardian vs. The World — Top 5 Competitors
 
 We studied the category the way you study an ex's new partner: thoroughly, and with notes. Here's the honest scoreboard.
 
-| Capability | 🛡️ **Guardian** | Noonlight | bSafe | Life360 | Circle of 6 | VerifyHim |
+| Capability | 🛡️ **Renegade Guardian** | Noonlight | bSafe | Life360 | Circle of 6 | VerifyHim |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | Price | **Free in beta; safety free forever** | Subscription | Subscription | Freemium + upsells | Free | Paywalled safety data |
 | Built for in-person providers | **✅ It's the entire point** | ❌ | ❌ | ❌ | ❌ (campus) | ⚠️ Adjacent |
@@ -402,11 +439,11 @@ We studied the category the way you study an ex's new partner: thoroughly, and w
 
 **One by one:**
 
-- **Noonlight** — the gold standard for *generic* safety, and we say so with respect: its text→call→dispatch confirmation ladder is the best behavior in the category, and we built ours in its honor. But Noonlight is a dispatch subscription for the general public. It has never screened a client, taken a deposit, or learned what a no-show costs. Guardian is the ladder — plus the entire profession around it.
-- **bSafe** — feature-broad and, per its own review history, heartbreakingly unreliable ("works 10% of the time" is a *recurring theme*, not our invention). Guardian's answer is an engineering culture: offline outboxes, retained room state, silence detection, nightly live-verified deploys. Breadth without reliability is a brochure.
-- **Life360** — a family tracker that reportedly sold the location data of ~50 million users. We don't have a clever line for this. We have an architecture that makes it *impossible* here: Guardian holds no location history to sell, leak, or be subpoenaed for. Their business model is your movements. Ours is your safety. Pick a side.
-- **Circle of 6** — a genuinely pioneering campus app whose coded-message grammar we proudly studied. It has also been effectively unmaintained — and an unmaintained safety app is worse than none, because it *looks* like a plan. Guardian ships updates measured in days, and its update toast makes sure you actually get them.
-- **VerifyHim** — screening behind a paywall, for the moment of maximum need. Guardian's screening — phone intel, disposable-email detection, checklists, verdicts — runs **on-device and free**, because a paywall between a provider and a red flag is not a business model, it's a liability waiver with a checkout button.
+- **Noonlight** — the gold standard for *general-purpose* safety, and we say so with respect: its text→call→dispatch confirmation ladder is the best behavior in the category, and we built ours in its honor. But Noonlight is a dispatch subscription for the general public. It has never screened a client, taken a deposit, or learned what a no-show costs. Renegade Guardian is the ladder — plus the entire profession around it.
+- **bSafe** — feature-broad and, per its own review history, heartbreakingly unreliable ("works 10% of the time" is a *recurring theme*, not our invention). Renegade Guardian's answer is an engineering culture: offline outboxes, retained room state, silence detection, nightly live-verified deploys. Breadth without reliability is a brochure.
+- **Life360** — a family tracker that reportedly sold the location data of ~50 million users. We don't have a clever line for this. We have an architecture that makes it *impossible* here: Renegade Guardian holds no location history to sell, leak, or be subpoenaed for. Their business model is your movements. Ours is your safety. Pick a side.
+- **Circle of 6** — a genuinely pioneering campus app whose coded-message grammar we proudly studied. It has also been effectively unmaintained — and an unmaintained safety app is worse than none, because it *looks* like a plan. Renegade Guardian ships updates measured in days, and its update toast makes sure you actually get them.
+- **VerifyHim** — screening behind a paywall, for the moment of maximum need. Renegade Guardian's screening — phone intel, disposable-email detection, checklists, verdicts — runs **on-device and free**, because a paywall between a provider and a red flag is not a business model, it's a liability waiver with a checkout button.
 
 *And an honorable mention of genuine respect:* **National Ugly Mugs (UK)** — whose consent-first architecture ("checks are not logged") set the ethical bar our screening design follows. Not a competitor. A compass.
 
@@ -415,14 +452,16 @@ We studied the category the way you study an ex's new partner: thoroughly, and w
 ## 🎁 Beta Testers Wanted — Free Pro for a Year
 
 > [!IMPORTANT]
-> **The call is open.** We are recruiting **in-person adult entertainers and providers** to beta-test Guardian on real dates, in real life, right now.
+> **The call is open.** We are recruiting **in-person adult entertainers and providers** to beta-test Renegade Guardian on real dates, in real life, right now.
+
+**Free during beta — all of it.** Every feature in this README is unlocked for beta testers, and nothing is paywalled during beta.
 
 **The deal — no fine print, because fine print is where deals go to die:**
 
 | You do | You get |
 |---|---|
-| Use Guardian on your real dates | A safety system that actually shows up |
-| Tell us what works, what doesn't, what should change (casually — contact options at [blacklisted.studio](https://blacklisted.studio), keyword **Guardian**) | A team that ships fixes in days, not quarters |
+| Use Renegade Guardian on your real dates | A safety system that actually shows up |
+| Tell us what works, what doesn't, what should change (casually — contact options at [blacklisted.studio](https://blacklisted.studio), keyword **Renegade Guardian**) | A team that ships fixes in days, not quarters |
 | Nothing else. No forms, no homework, no meetings, no "synergy" | **A FREE 1-YEAR Guardian Pro subscription the day Pro launches** — granted in your account data, not in a coupon code that expires in a junk folder |
 
 **The privacy guarantee, architecturally:** BNE never accesses your GPS, your clients, your sessions, or your data — it all stays on your device (read the blueprint above; it's not a promise, it's a parts list). Your feedback is the only thing that ever reaches us, and only the parts you choose to send.
@@ -473,7 +512,7 @@ Beta testers: your free year is already the plan of record (`pro_source = beta_g
 
 **Her side:** press-and-hold the panic button (or miss check-out, or let the dead-man's switch lapse). Siren starts. The app locks — stopping anything requires *her* PIN. Her feed shows acks landing in real time: *"Maria saw it · Maria is on her way."* She is watching people move toward her. That matters more than we can put in a table.
 
-**Their side:** phone buzzes (ntfy) + SMS + the watch page opens to a red emergency card: her live map, the address in words, battery, and three buttons — **Seen / On my way / Called help**. If nobody presses anything for 3 minutes, it all fires again. The watch page chimes, vibrates, and holds the screen awake until she stands down.
+**Their side:** phone buzzes (private push) + SMS + the watch page opens to a red emergency card: her live map, the address in words, battery, and three buttons — **Seen / On my way / Called help**. If nobody presses anything for 3 minutes, it all fires again. The watch page chimes, vibrates, and holds the screen awake until she stands down.
 
 </details>
 
@@ -513,7 +552,7 @@ Six engineering phases in production, one research program that never really sto
 
 | Version | Codename | What landed |
 |---|---|---|
-| v0.2–0.4 | *The Foundation* | Panic + check-in/out, free alert stack (share sheet + ntfy), selectable alarms, panic PIN lock, the help cry |
+| v0.2–0.4 | *The Foundation* | Panic + check-in/out, free alert stack (share sheet + private push), selectable alarms, panic PIN lock, the help cry |
 | v0.5.0 | **GPS Reliability Pack** | Kalman-filtered tracking, adaptive cadence, offline outbox, signal-interrupted detection, crash-proofing, test suite |
 | v0.6.0 | **Trust Pack** | Confirmation ladder, She's Safe, coded signals, fake rescue call, **screening + private client log** |
 | v0.7.x | **Protocol v2** | Our own encrypted Cloudflare rooms replace the public broker; Argon2id PINs; X25519 identity; passkeys |
@@ -524,7 +563,7 @@ Six engineering phases in production, one research program that never really sto
 
 ```mermaid
 gantt
-    title Guardian — from panic button to platform
+    title Renegade Guardian — from panic button to platform
     dateFormat YYYY-MM-DD
     section Shipped
     Foundation (panic, alerts, PIN lock)      :done, 2026-10-28, 2026-11-01
@@ -533,7 +572,7 @@ gantt
     section Next
     Native Android + on-device AI             :2026-11-02, 45d
     Guardian Pro (Stripe + BTCPay)            :2026-12-15, 30d
-    Experience packs + touring mode           :2027-01-15, 45d
+    Touring mode + deeper business tooling    :2027-01-15, 45d
 ```
 
 ---
@@ -547,15 +586,15 @@ gantt
 | **Now** | Native Android build (Capacitor) with the same web core; on-device AI lane: session audio trouble-detection and voice control (panic path never depends on the AI — it *advises*, the button *decides*) |
 | **Next** | Self-hosted map tiles (Protomaps PMTiles on R2) — vector maps with zero external dependency; sealed-box session keys delivered directly to paired circle devices; on-device session transcription for the vault |
 | **Pro launch** | Stripe Billing + Customer Portal + BTCPay Pro rail; beta-grant backfill (free year, automatic); touring mode |
-| **The vision** | **Experience packs**: the 99.9%-shared safety core, skinned and worded per profession — providers first (the flagship), then realtors, notaries, drivers, photographers, sitters. One core, battle-tested by the users with the highest stakes on Earth |
+| **The vision** | A deeper Renegade Guardian: touring support, richer business tooling, and an even harder safety core — battle-tested by the in-person entertainers and solo gig workers who have the highest stakes on Earth |
 
 ---
 
 ## 🙏 Credits — Standing on the Shoulders of Giants
 
-Guardian was engineered by BNE — but nobody builds a cathedral alone, and we don't pretend otherwise. The open-source community unknowingly contributed patterns, algorithms, and battle-tested code to this app. **Thank you. By name:**
+Renegade Guardian was engineered by BNE — but nobody builds a cathedral alone, and we don't pretend otherwise. The open-source community unknowingly contributed patterns, algorithms, and battle-tested code to this app. **Thank you. By name:**
 
-### 📦 Code running in Guardian today
+### 📦 Code running in Renegade Guardian today
 
 | Project | What we took | License |
 |---|---|---|
@@ -570,7 +609,7 @@ Guardian was engineered by BNE — but nobody builds a cathedral alone, and we d
 | [mqtt.js](https://github.com/mqttjs/MQTT.js) | The fallback sync transport | MIT |
 | [react-error-boundary](https://github.com/bvaughn/react-error-boundary) | Crash-proofing that keeps alarms alive outside the blast radius | MIT |
 | [@supabase/supabase-js](https://github.com/supabase/supabase) | Accounts — identity + entitlement only | MIT |
-| [ntfy](https://github.com/binwiederhier/ntfy) | The free, content-free push layer her circle feels buzz | Apache-2.0 / GPL-2.0 |
+| [ntfy](https://github.com/binwiederhier/ntfy) | The open-source push software we **self-host on Renegade Guardian's own private push servers** — the free, content-free buzz her circle feels | Apache-2.0 / GPL-2.0 |
 | [BTCPay Server](https://github.com/btcpayserver/btcpayserver) | The payment rail nobody can deplatform | MIT |
 | React · Vite · Tailwind CSS · Vitest · Workbox (vite-plugin-pwa) | The skeleton, the muscles, the skin, the immune system | MIT |
 
@@ -604,7 +643,7 @@ If you maintain one of these projects: you helped protect people you'll never me
 | Accounts | Supabase Auth (magic link) + Postgres RLS | Identity only; own-row policies |
 | Maps | Leaflet + OSM (PMTiles self-hosted on the roadmap) | No API keys, no watermarks, no ransom |
 | Payments | BTCPay Server + Stripe | One rail they can't close, one rail everyone knows |
-| Push | ntfy (content-free) + Web Notifications + optional Twilio SMS | Free first; layered always |
+| Push | Renegade Guardian private push servers (self-hosted, content-free) + Web Notifications + optional SMS relay | No third-party notification service in the alert path; free first, layered always |
 | Tests | Vitest — 31 tests incl. crypto round-trips & intent classification | The AES key-length bug class is *pinned by a test now* |
 | Hosting | Cloudflare Pages + Workers (custom domains via worker domains) | Edge-fast, $0-to-heroic scale |
 
@@ -612,24 +651,24 @@ If you maintain one of these projects: you helped protect people you'll never me
 
 ## 🏢 Who We Are
 
-**Guardian is a Blacklisted Niche Entertainment (BNE) production** — engineered by **Blacklisted Binary Labs** in Seattle, Washington, under the direction of founder **Rob Branting**. BNE is the studio behind Blacklisted Binary Records, the Blacklisted design studios, and a small empire of software built for the people the mainstream platforms would rather pretend don't exist.
+**Renegade Guardian is a Blacklisted Niche Entertainment (BNE) production** — engineered by **Blacklisted Binary Labs** in Seattle, Washington, under the direction of founder **Rob Branting**. BNE is the studio behind Blacklisted Binary Records, the Blacklisted design studios, and a small empire of software built for the people the mainstream platforms would rather pretend don't exist.
 
-We are not a venture-backed safety unicorn. We are a boutique: obsessive, independent, allergic to permission. Guardian's design language — black, gold, emerald, and unapologetic — is deliberate: the women who use this app deserve software that looks like it was made by a firm that charges by the comma, because to us, *they're* the 1% worth impressing.
+We are not a venture-backed safety unicorn. We are a boutique: obsessive, independent, allergic to permission. Renegade Guardian's design language — black, gold, emerald, and unapologetic — is deliberate: the women who use this app deserve software that looks like it was made by a firm that charges by the comma, because to us, *they're* the 1% worth impressing.
 
-**Why we built it:** because "there's an app for that" was a lie told to the people who needed it most. **How it evolved:** a panic button became a protocol, the protocol became a platform, and the platform became a promise. **Where it's going:** native apps, on-device AI, profession packs, and a Pro tier that funds the mission without ever mortgaging the mission. The roadmap is above; the receipts are in the changelog; the app is live. Judge us by all three.
+**Why we built it:** because "there's an app for that" was a lie told to the people who needed it most. **How it evolved:** a panic button became a protocol, the protocol became a platform, and the platform became a promise. **Where it's going:** native apps, on-device AI, touring support, and a Pro tier that funds the mission without ever mortgaging the mission. The roadmap is above; the receipts are in the changelog; the app is live. Judge us by all three.
 
 ---
 
 ## ❓ FAQ
 
 <details>
-<summary><b>Is Guardian really free?</b></summary>
+<summary><b>Is Renegade Guardian really free?</b></summary>
 Yes — everything, during beta. At Pro launch, convenience features get a price tag; **safety features stay free forever**. That's not a promotion, it's the constitution.
 </details>
 
 <details>
 <summary><b>Do you have my location history?</b></summary>
-No. We *can't* — session data moves as ciphertext through relay rooms that log nothing, and everything at rest lives on your phone. There is no Guardian database of your life. We keep saying it because it's the truest sentence on this page.
+No. We *can't* — session data moves as ciphertext through relay rooms that log nothing, and everything at rest lives on your phone. There is no Renegade Guardian database of your life. We keep saying it because it's the truest sentence on this page.
 </details>
 
 <details>
@@ -639,7 +678,7 @@ Email, display name, plan, and (at Pro) a Stripe customer ID. Created so your su
 
 <details>
 <summary><b>What if my phone dies mid-date?</b></summary>
-Your circle sees the silence, flagged as *signal interrupted* — and your dead-man's switch keeps counting. Silence in Guardian is never neutral; it's a signal with its own protocol (see the Failsafe Bible, #2 and #6).
+Your circle sees the silence, flagged as *signal interrupted* — and your dead-man's switch keeps counting. Silence in Renegade Guardian is never neutral; it's a signal with its own protocol (see the Failsafe Bible, #2 and #6).
 </details>
 
 <details>
@@ -661,21 +700,21 @@ Start with `BLUEPRINT_V2.md` (the engineering plan), `RESEARCH_V2.md` (the audie
 
 ## 📜 License
 
-Guardian is **proprietary software © Blacklisted Niche Entertainment / Blacklisted Binary Labs**. All rights reserved. The open-source components inside it remain under their respective licenses (see Credits — we honor every one of them). This repository is public so the architecture can be *audited* — trust, but verify. Especially us.
+Renegade Guardian is **proprietary software © Blacklisted Niche Entertainment / Blacklisted Binary Labs**. All rights reserved. The open-source components inside it remain under their respective licenses (see Credits — we honor every one of them). This repository is public so the architecture can be *audited* — trust, but verify. Especially us.
 
 <div align="center">
 
 ---
 
-<img src="docs/assets/hero-banner.webp" alt="Guardian" width="60%" />
+<img src="docs/assets/renegade-guardian-logo.webp" alt="Renegade Guardian" width="300" />
 
-### 🛡️ GUARDIAN
+### 🛡️ RENEGADE GUARDIAN
 
 *She was never unprotected. She was just waiting for someone to build it properly.*
 
-**[Launch Guardian](https://guardian-app.blacklisted.studio)** · **[guardian.blacklisted.studio](https://guardian.blacklisted.studio)** · **[Join the beta](https://blacklisted.studio)**
+**[Launch Renegade Guardian](https://guardian-app.blacklisted.studio)** · **[guardian.blacklisted.studio](https://guardian.blacklisted.studio)** · **[Join the beta](https://blacklisted.studio)**
 
 <sub>Built with obsession in Seattle, WA · Blacklisted Niche Entertainment · Blacklisted Binary Labs</sub>
-<sub>If Guardian ever matters in your life, it will be on the worst night of it. We build like we know that.</sub>
+<sub>If Renegade Guardian ever matters in your life, it will be on the worst night of it. We build like we know that.</sub>
 
 </div>
