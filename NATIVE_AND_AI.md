@@ -389,6 +389,217 @@ native.
   native module's test matrix is Pixel (Tensor) + one mid-range
   Snapdragon + one low-end device (§7 gates).
 
+### 3.7 Bluetooth remote triggers — a silent hand on the controls
+
+*Added 2026-11-04 (Rob's directive). The reference hardware is the
+commodity scrolling-ring category sold for social-media scrolling —
+reference unit: WEWAHIVER "TikTok Scrolling Ring Remote Control"
+(Amazon B0G7FMZ87T, ~$15): a finger ring with **completely silent
+buttons**, an adjustable band, USB-rechargeable, offering scroll
+up/down, swipe left/right, pause/play, likes and volume +/−. The
+product insight is the form factor: a trigger she wears on her hand,
+silent, operable by feel, while the phone sits in a bag across the
+room. §3.3's triggers all live on the phone; this one doesn't.*
+
+#### 3.7.1 The input layer — standard HID, no SDK, no device table
+
+- Rings in this class pair as ordinary **Bluetooth HID** devices. To
+  Android the ring is a small keyboard / media controller / mouse:
+  its buttons arrive as standard `KeyEvent`s — typically
+  `KEYCODE_MEDIA_PLAY_PAUSE` (center button), `KEYCODE_DPAD_UP /
+  DOWN / LEFT / RIGHT` (the pad; some clones send media next/previous
+  or page keys instead), and `KEYCODE_VOLUME_UP / DOWN`. The "like"
+  button varies most by clone. **No vendor SDK exists, none is
+  needed, there is no companion app and no account** — nothing about
+  the device phones home, and Guardian never ships a per-device
+  compatibility table. Universality is a property of the protocol,
+  not of a brand list: any HID ring, selfie remote or presentation
+  clicker is a candidate device.
+- **Two receive paths, honestly scoped:**
+  1. **MediaSession path (phone put away).** During a live session
+     the §3.2 foreground service holds an active `MediaSession`;
+     Android routes Bluetooth *media-class* button events
+     (play/pause, next/previous — the ring's center button class) to
+     that session's callback / media-button receiver with the
+     screen off and the app backgrounded. This is the supported
+     route and the one the default mapping leans on.
+  2. **Foreground path (Guardian on screen).** The native plugin's
+     activity-level `dispatchKeyEvent` capture hears *every* learned
+     key — pad, volume, enter-class keys included — while a
+     Guardian activity is in front (session screen, fake-call
+     screen, lock-screen activity), before the WebView or the
+     system default sees it.
+- Learn mode labels every learned button with its delivery class —
+  **"works with the phone put away"** (media class) vs **"works
+  while Guardian is on screen"** (everything else) — so nobody
+  discovers mid-session that a button needed the screen on.
+  Accessibility services are **not** used to widen capture: Play's
+  accessibility policy and this audience's optics both forbid it,
+  so background capture of non-media keys is out of scope, stated
+  plainly rather than papered over.
+- **Mouse mode is detected, not supported.** Rings in this class
+  commonly carry a second mode in which the pad moves an on-screen
+  pointer and the center button clicks (HID mouse). Pointer input
+  cannot be captured in the background, and click coordinates are
+  not a trigger surface Guardian will ever act on. Learn mode
+  detects the mode — presses that move a pointer, or produce no
+  key events at all, fail the capture test — and walks the user
+  through flipping the ring into its keyboard/media mode (a
+  device-side toggle; the wizard gives the generic guidance, since
+  the toggle's location varies by clone) before learning proceeds.
+- **Connection awareness.** The service watches the learned
+  device's HID connection state for the session's duration. The
+  arm-time readiness checks (§8.2 pattern) gain one line: if a
+  learned remote is mapped but not connected when a session arms,
+  Sis says so — *"your ring isn't connected"* — a fix made in the
+  calm before, not a discovery made in the moment.
+
+#### 3.7.2 Learn mode — the pairing wizard
+
+Because every clone wires its buttons differently, Guardian learns
+the user's actual remote instead of recognising models. Learn mode
+lives as a Sis step (§8.2 pattern) and as a settings panel,
+**Remote Triggers**:
+
+1. **Pair** in Android's Bluetooth settings — standard system
+   pairing; Guardian runs no pairing dance of its own.
+2. **Press each button** on the ring, one at a time. The wizard
+   captures keycode + scan code per press, plays back what it heard
+   in plain language, and tags the delivery class (§3.7.1).
+3. **Mode check** — the mouse-mode test above; no learning on a
+   pointer.
+4. **Assign actions** — the §3.7.3 defaults arrive pre-filled;
+   every assignment is changeable, per button, in one list.
+5. **The volume disclosure** (§3.7.3) is read and accepted — or
+   volume keys are excluded — before any mapping that uses them
+   can save.
+6. **Drill** — each mapped control is fired once in test mode,
+   same discipline as the §3.3 shake trigger: remote triggers are
+   off by default until drilled.
+
+Multiple remotes can be learned (a ring plus a selfie remote);
+mappings are per-device, keyed to the device's Bluetooth identity,
+and stored in the Keystore-backed storage of §3.5. A different
+unit that merely shares a product name inherits nothing until it
+has been learned.
+
+#### 3.7.3 The mapping — dedicated buttons first, patterns second
+
+Defaults for the reference ring's layout (everything remappable):
+
+| Ring control | Typical key event | Default action |
+|---|---|---|
+| Center (single press) | `KEYCODE_MEDIA_PLAY_PAUSE` | Mark safe / check in — warning level resets to 1 |
+| Center (long press ≥ 1.5 s) | same, held | **Panic** — the deterministic panic path: SOS + GPS to her circle |
+| Pad up | `KEYCODE_DPAD_UP` | Escalate warning one level |
+| Pad down | `KEYCODE_DPAD_DOWN` | De-escalate one level (short of a full mark-safe) |
+| Pad right | `KEYCODE_DPAD_RIGHT` | Start Fake Call — incoming call lands within a few seconds |
+| Pad left | `KEYCODE_DPAD_LEFT` | **Off by default** — recommended assignment: start live A/V streaming to her circle (opt-in, §3.7.5) |
+| Volume + / − | `KEYCODE_VOLUME_UP / DOWN` | **Unmapped by default** — see the volume rule below |
+
+Press patterns are the second layer, and the only layer a
+one-button device has. Any learned button additionally supports
+single / double / triple / long-press; the single-button defaults
+are: single = mark safe, double = escalate, triple = start Fake
+Call, long press (≥ 1.5 s) = panic. A deterministic state machine
+in the service does the recognising (≈400 ms multi-tap window,
+800 ms long-press threshold for non-panic actions, 1.5 s for
+panic). No AI touches this path (§4.4's rule) — it is the §5.4
+grammar idea rendered in clicks instead of words.
+
+**The volume rule (binding copy + behaviour).** If she maps the
+ring's volume keys, those presses become Guardian controls during
+an armed session and *stop being volume buttons* on the
+foreground path; on the put-away path their behaviour is
+OEM-dependent and they are labelled on-screen class. The wizard
+says this in plain words before such a mapping can save —
+*"While a session is running, these buttons stop changing your
+volume and become Guardian buttons"* — and offers **"Don't use
+my volume buttons"** as a first-class choice. Default is unmapped:
+for many users the ring's pad and center button are the whole
+surface, and the phone's volume is never touched.
+
+#### 3.7.4 In session — service behaviour and feedback
+
+- **Armed-session fence.** Remote input is live only while a
+  session is armed (the §5 fence). Outside a session the ring is
+  jewellery: the service isn't holding the session open, and even
+  with Guardian in front, unlearned or out-of-session presses do
+  nothing Guardian-side. A desk keyboard paired to the same phone
+  fires nothing either — only learned devices resolve to intents.
+- **One action bus.** A recognised press resolves to the same core
+  intents as §6.2's voice commands (`checkIn`, escalate,
+  `triggerFakeCall`, the deterministic panic, `startStreaming`),
+  so behaviour, stand-down semantics and the session feed are
+  identical whichever channel fired. The feed logs the channel
+  (`remote: center long-press`) — the record shows how an action
+  was triggered, which matters when a session is reviewed later.
+- **Silent, screen-free feedback.** A firing changes nothing on
+  the display — no toast, no flash, nothing for a client glancing
+  at the phone to notice. Confirmation is haptic only: one short
+  buzz for received (mark-safe, escalate, de-escalate), two for
+  Fake Call armed, one discreet pulse for panic (configurable
+  off). Nothing audible at any setting.
+- **Fake Call timing.** A remote-started fake call rings after a
+  short randomised delay (seconds), so it reads as an incoming
+  call arriving on its own — not as a thing she just did with
+  her hand.
+- **Cost.** The service was already running and holding the
+  MediaSession (§3.2); the recogniser adds no wake locks and no
+  polling. The ring side is a rechargeable coin-cell-class
+  device. Battery accounting lands in §4.6's table when 7.2
+  measures it — no claim is published before then.
+
+#### 3.7.5 Guardrails (binding)
+
+- **Panic is deliberate, by construction.** Factory default is a
+  sustained ≥ 1.5 s hold, and the wizard *refuses* to map panic to
+  anything lighter than a double-press or a ≥ 1.5 s hold. No
+  single stray tap — pocket, handbag, a fumbled ring — can fire
+  panic.
+- **The remote fires; it never cancels.** Stand-down, panic stop
+  and session end keep exactly their §3.4 semantics: the PIN pad
+  is the only stop path, and the duress/decoy meanings are
+  unreachable from the remote. Mark-safe during an active panic
+  does what an on-screen check-in does during one — it does not
+  stand the panic down. A lost or stolen ring is a trigger, not
+  a key: it unlocks nothing, opens nothing, and shows nothing —
+  no Guardian UI appears when it fires.
+- **Streaming is opt-in, never a default.** Assigning live A/V
+  streaming to a button requires the §5 consent-fence explanation
+  (what streams, to whom, when it stops) at assignment time, not
+  buried in settings later.
+- **Unlearning is one tap** (Settings → Remote Triggers), and
+  every remote action keeps its on-screen and voice equivalents —
+  losing the ring mid-tour costs convenience, never capability.
+
+#### 3.7.6 Two stealth channels — voice and hardware
+
+§5.4 and §6 gave her the first silent channel: key phrases worked
+naturally into a Fake Call — *Mom, manager, whoever's "calling"* —
+that escalate, stream, or stand the warning level back down to 1
+without leaving the conversation. The ring is the second channel,
+for the moments voice itself is the risk: he's listening as
+closely as the AI is, she's mid-sentence, she's smiling — and her
+thumb finds a silent button in her palm. The two channels cover
+each other's failure modes (hands busy vs. can't speak), resolve
+to the same deterministic intents, pass through no AI model, and
+either can be disabled without weakening the other. That pairing —
+voice for the room, hardware for the hand — is the feature; the
+$15 ring is just its cheapest peripheral.
+
+#### 3.7.7 Platform scoping (honest)
+
+| Platform | Support |
+|---|---|
+| Native Android (both flavors) | **Full.** MediaSession put-away capture for media-class keys, foreground capture for all learned keys, learn mode, patterns, drill. Which *actions* a press can fire follows each flavor's existing feature rules (§2.2) — the input layer itself is flavor-neutral. |
+| Web PWA | **Limited.** While the Guardian tab is open and in front, the page hears media/pad keys (KeyboardEvent / Media Session API) and learn mode works — every button labelled on-screen class. Screen off or tab backgrounded: nothing. That is the browser ceiling from the audit, not a choice. |
+| iOS | **Not promised.** Third-party apps have no background key-event path for accessories in this class; until that changes, remote triggers are out of scope on iOS rather than half-shipped. |
+
+Lands with the **7.2 step** — the session service and voice
+commands v1 share the intent bus this plugs into, and it ships
+behind the same release gate.
+
 ---
 
 ## 4. On-Device AI — three small models, three different jobs
