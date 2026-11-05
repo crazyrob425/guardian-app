@@ -14,7 +14,7 @@ export default function DateSetupScreen(props: { discreet: boolean; onBack: () =
       const raw = localStorage.getItem("guardian.prefill.v1");
       if (raw) {
         localStorage.removeItem("guardian.prefill.v1");
-        return JSON.parse(raw) as { alias?: string; durationMin?: number };
+        return JSON.parse(raw) as { alias?: string; durationMin?: number; clientId?: number; bookingId?: number };
       }
     } catch { /* noop */ }
     return null;
@@ -52,6 +52,8 @@ export default function DateSetupScreen(props: { discreet: boolean; onBack: () =
         expectedMin: mins,
         incall,
         state: "active",
+        clientId: prefill?.clientId,
+        bookingId: prefill?.bookingId,
       });
       props.go("#/session");
     } catch (e) {

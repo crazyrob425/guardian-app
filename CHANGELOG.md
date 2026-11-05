@@ -4,6 +4,115 @@ The full engineering log: every version, what shipped, what broke, what we
 learned. The polished story lives in [README.md](README.md); this is the
 grease under the fingernails.
 
+## v0.12.1 — Client Dossier / Contact Manager (2026-11-05)
+
+The client log grows into a full contact manager with a per-client
+dossier — built from Rob's brief: make it as intelligent as possible,
+scan messages to auto-populate matching info, and keep ~99% of the form
+optional. Full spec: [DOSSIER_SPEC.md](DOSSIER_SPEC.md).
+
+- **Dossier page** (`#/dossier/<id>`, `#/dossier/new`;
+  `screens/DossierScreen.tsx`, `lib/dossier.ts`): extends `ClientRow`
+  in place (all new fields optional + non-indexed, no Dexie bump).
+  The ONLY validation gate is a name plus at least one contact channel
+  (phone / email / handle / extra channel). Everything else is
+  available-if-known: aliases, extra contact channels, source,
+  first-contact date, screening details, preferences, boundaries, an
+  incidents log, tags, and a communications log. Toggleable options per
+  Rob's spec: deposit required, incall / outcall / both, verified
+  yes / no / in-progress.
+- **Provider references** — first-class, exactly Rob's structure: three
+  slots of name / number / positive-neutral-negative /
+  ref-confirmed. Extraction can propose a reference but can NEVER mark
+  one confirmed — only the user does that. This is the local half of
+  the Phase 8 reference network (keyed-hash comparison when it ships);
+  until then it is on-device only, zero network surface.
+- **Computed rollups** (`computeRollups()`): total completed dates,
+  first/last date, no-shows, deposits taken / on cancelled / upcoming,
+  per-date ratings + average — all derived from linked bookings, never
+  hand-entered.
+- **Message scanning with a human gate** (`lib/extract.ts`,
+  `components/ExtractionReview.tsx`): paste a conversation, import a
+  .txt/.json chat export or .vcf, pick a contact, or OCR a screenshot —
+  an on-device regex/heuristics extractor proposes candidate facts
+  (phones, emails, handles, dates, deposit/payment mentions, reference
+  mentions, verification, incall/outcall), each with its source snippet
+  and a confidence chip. Only user-checked facts are applied; ambiguous
+  facts append to notes instead of overwriting hand-typed data.
+  Inference can set verified status only to "in-progress", never
+  "yes". Raw text is discarded after review unless the user explicitly
+  opts to save it to the comms log.
+- **Contact manager** (`#/clients`): search across names, aliases and
+  every channel; filters (Regulars / Avoid / Verified / Unverified /
+  Has references); per-card "Dossier strength" meter (0–100% over ~19
+  weighted facts — a nudge, never a gate), screening progress,
+  dates-done, refs count, no-shows; quick actions (Start date,
+  + Booking, Message, Dossier). Duplicate detection on save and import
+  matches normalized phone/email/handle keys across primary AND extra
+  channels, with a per-field merge flow.
+- **C&C integration**: Command & Control's "Open full dossier" now
+  deep-links to the current date's client dossier
+  (`dossierRoute(id)`) when the session is linked to a client, falling
+  back to the contact manager when it isn't. The status-ping
+  share-filtering rule is shared: notes / ratings / history only leave
+  the phone when the matching circle-share toggle is on.
+- Everything stays on-device: no network calls carry dossier data; UI
+  copy keeps the promise — "lives only on this phone — never uploaded,
+  never synced, never shared."
+
+## v0.12.0 — Phase 8a: Low Signal Mode, News Ticker, Command & Control (2026-11-05)
+
+Built from Rob's field feedback: the app now assumes the signal WILL die
+mid-date and behaves accordingly.
+
+- **Low Signal Mode + fallback messaging** (`lib/connectivity.ts`,
+  `lib/escalation.ts`, `lib/blast.ts`, `lib/dispatch.ts`): connectivity is
+  judged from five signals (OS online state, live sync connection, send
+  outcomes, outbox depth, Network Information API). Trouble engages a
+  named Level 2 escalation — Low Signal Mode — with the reasons logged.
+  Escalation is now a condition set (L1 normal / L2 heightened / L3
+  emergency) that can always answer "why is it there?". Time-critical
+  messages probe-blast EVERY configured automated path at once; delivery
+  outcomes are learned per session and later sends lead with confirmed
+  paths, with a second wave (always including built-in Guardian push)
+  5–10 s behind critical traffic. Detection is advisory only — panic/SOS
+  timing and behavior are unchanged at every level.
+- **News ticker** (`components/NewsTicker.tsx`): a bottom bar on every
+  owner screen rotating the session event log — status alerts, circle
+  communications, remote commands received. Tapping it runs the PIN gate
+  (`components/PinGate.tsx`, lock rules mirrored exactly: real PIN/passkey
+  opens C&C; duress silently alerts + shows a bland status page; decoy
+  likewise reveals nothing) into Command & Control.
+- **System Command & Control** (`screens/CommandScreen.tsx`): the date
+  cheat sheet — client, deposit, start/end, elapsed/remaining, next
+  booking today, escalation level + reasons, battery, network, last
+  check-in, GPS-vs-booked-location match, session command log, and the
+  circle log (presence from watch-page heartbeats, last response, remote
+  commands — no invented read receipts). Per-member actions: DM over the
+  encrypted session channel, honest Phase 8 stubs for Matrix chat/voice,
+  and Rob's full quick-request menu (all 23 entries) — with session
+  extension, timed door-knock/siren follow-ups (persisted, fired by an
+  App-level host), escalation effects, and cancel-last-request.
+- **Full status ping**: watchers get "📋 Full status / 🎥 Live stream /
+  📞 Fake call" remote-command buttons (`WatchScreen`). A status request
+  auto-replies with a bundle built by `lib/statusping.ts`; dossier notes,
+  ratings, and visit history are included ONLY when the per-client share
+  toggles (new, default OFF, in the client record) allow it — the builder
+  also reports what it withheld, and C&C previews the exact bundle.
+- **Dossier completion**: bookings can link a client (booking board picker
+  + session prefill carries clientId/bookingId), completed dates can be
+  rated 1–5 (booking board + dossier history), DB v5 adds the events
+  table + bookings clientId index.
+- **Backup paths setup**: Sis wizard grows a 9th step ("Backup plans 📡")
+  and Settings gains the same card (`components/BackupPathsCard.tsx`) —
+  real paths only, manual paths labeled manual, unconfigured paths say so.
+- Tests: 17 new (48 total) covering the escalation reducer, connectivity
+  classifier, path ranking, bundle share-filtering, booking matching, and
+  the quick-request catalog.
+- Blueprint: NATIVE_AND_AI.md §12 specifies the Phase 8 backend this
+  builds toward (Matrix/Tuwunel chat + voice, presence/command transport,
+  remote-command execution rules).
+
 ## v0.11.2 — Honest Texting (2026-11-02)
 - **Bug found by Rob on a real phone test:** the session screen's "Text circle"
   button reported *"Watch link texted to 2 people"* while running in demo mode

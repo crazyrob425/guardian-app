@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Card, Btn, Field, inputCls } from "../components/ui";
 import { store, type Settings } from "../lib/store";
+import BackupPathsCard from "../components/BackupPathsCard";
 import { getSetup, saveSetup, SETUP_STEP_COUNT } from "../lib/setup";
 import { hashPin } from "../lib/pin";
 import { randomId } from "../lib/crypto";
@@ -26,6 +27,7 @@ const SIS = [
   { title: "Your circle ⭕", sub: "Nobody does this job alone, babe" },
   { title: "Permissions, ugh, I know", sub: "Thirty seconds and they're actually for YOU" },
   { title: "Make some noise 🔊", sub: "Pick the sound that saves your butt" },
+  { title: "Backup plans 📡", sub: "When the bars disappear, we shout louder" },
   { title: "Test drive, then done 🎉", sub: "Let's make sure it all actually works" },
 ];
 
@@ -81,7 +83,8 @@ export default function SetupWizard(props: { go: (r: string) => void; onDone: ()
       {step === 4 && <StepCircle s={s} set={set} next={() => jump(5)} />}
       {step === 5 && <StepPermissions next={() => jump(6)} />}
       {step === 6 && <StepSound s={s} set={set} next={() => jump(7)} />}
-      {step === 7 && <StepTest s={s} finish={finish} />}
+      {step === 7 && <StepBackups s={s} set={set} next={() => jump(8)} />}
+      {step === 8 && <StepTest s={s} finish={finish} />}
 
       {step > 0 && (
         <button onClick={() => jump(step - 1)} className="mt-6 text-sm text-zinc-500 underline-offset-2 hover:underline">← Back a step</button>
@@ -340,6 +343,21 @@ function StepSound(props: { s: Settings; set: <K extends keyof Settings>(k: K, v
         <p className="text-xs text-zinc-600">She calls, she talks, she listens, she gets you OUT of there. And she matches your phone's call screen — set that in Settings anytime.</p>
       </Card>
       <Btn variant="primary" onClick={props.next}>Sounds perfect →</Btn>
+    </div>
+  );
+}
+
+function StepBackups(props: { s: Settings; set: <K extends keyof Settings>(k: K, v: Settings[K]) => void; next: () => void }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm leading-relaxed text-zinc-300">
+        Okay, real talk: hotel stairwells, basement bars, the middle of nowhere — signals die exactly where dates happen.
+        So when Guardian smells a dead zone, it flips into <strong className="text-amber-300">Low Signal Mode</strong> and blasts your
+        message out every path you've got, all at once. It remembers which paths actually got through and leads with
+        those for the rest of the date. Pick your paths — you can change them anytime in Settings.
+      </p>
+      <BackupPathsCard s={props.s} set={props.set} />
+      <Btn variant="primary" onClick={props.next}>Covered from every angle →</Btn>
     </div>
   );
 }

@@ -17,6 +17,13 @@ import { sendEmergencyPush } from "../lib/notify";
 import { shareLink, type SharePayload } from "../lib/share";
 import ShareSheet from "../components/ShareSheet";
 import { startBroadcast, type BroadcastHandle } from "../lib/webrtc";
+import { logEvent } from "../lib/events";
+import { setCondition, clearCondition, clearAllConditions, getEscalation } from "../lib/escalation";
+import { recordPresence, recordCircleAction } from "../lib/circlelog";
+import { registerConnProbes, unregisterConnProbes } from "../lib/connectivity";
+import { dispatchMessage, type SyncDoor } from "../lib/dispatch";
+import { assembleStatusFacts, buildStatusBundle } from "../lib/statusping";
+import { scheduleFakeCall } from "../lib/fakecall";
 
 interface FeedItem { ts: number; text: string; tone: "info" | "warn" | "danger" }
 
@@ -74,8 +81,15 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
         const sync = await connectSession({ broker: settings.mqttBroker, sessionId: session.id, key });
         if (dead) { sync.close(); return; }
         syncRef.current = sync;
+        registerConnProbes({
+          sessionId: session.id,
+          syncConnected: () => sync.connected(),
+          outboxDepth: () => outboxCount(session.id),
+        });
         await sync.publish("state", { state: "active", alias: session.alias, startedAt: session.startedAt, expectedMin: session.expectedMin, ts: Date.now() }, true);
         pushFeed(`${L.Date} checked in — encrypted sync live.`);
+        logEvent("checkin", `✅ Checked in — ${L.date} started (${session.expectedMin} min).`, session.id);
+        logEvent("status", "Encrypted sync live — circle can watch.", session.id);
 
         sync.onPos((m: PosMsg) => {
           if (m.from !== "client") return;
@@ -101,9 +115,52 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
           if (m.type === "ack") {
             ackedRef.current = true;
             const who = m.by || "Your circle";
+            recordCircleAction(session.id, who, `acknowledged (${m.note ?? "seen"})`, m.ts);
+            logEvent("circle", `👁 ${who} acknowledged: ${m.note ?? "seen"}`, session.id);
             if (m.note === "onmyway") { playChime(); pushFeed(`🚗 ${who} is ON THEIR WAY to you.`, "warn"); }
             else if (m.note === "called-help") pushFeed(`📞 ${who} has called for help.`, "warn");
             else pushFeed(`👁 ${who} saw your alert.`, "info");
+            return;
+          }
+          // Phase 8 remote commands from the circle.
+          if (m.type === "status-request") {
+            const who = m.by || "Your circle";
+            recordCircleAction(session.id, who, "requested full status", m.ts);
+            logEvent("circle", `📋 ${who} requested a full status update — replying with the share-filtered bundle.`, session.id);
+            pushFeed(`📋 ${who} asked for a full status update — sending it.`, "info");
+            void (async () => {
+              const s = sessionRef.current;
+              if (!s) return;
+              const { facts } = await assembleStatusFacts(s);
+              const bundle = buildStatusBundle(facts);
+              await sync.publish("alert", { type: "status-reply", ts: Date.now(), by: settings.displayName || "Guardian", data: bundle.text }, false).catch(() => {});
+              logEvent("command", `Status bundle sent to the circle (${bundle.included.length} fields in, ${bundle.withheld.length} withheld by share settings).`, session.id);
+            })();
+            return;
+          }
+          if (m.type === "stream-request") {
+            const who = m.by || "Your circle";
+            recordCircleAction(session.id, who, "requested live stream", m.ts);
+            logEvent("circle", `🎥 ${who} requested the live stream — starting the emergency camera.`, session.id);
+            pushFeed(`🎥 ${who} requested the live stream — camera starting.`, "warn");
+            if (!broadcastRef.current) {
+              startBroadcast(sync).then((b) => { broadcastRef.current = b; }).catch(() => pushFeed("Camera unavailable — location + alerts still active.", "warn"));
+            }
+            return;
+          }
+          if (m.type === "fakecall-request") {
+            const who = m.by || "Your circle";
+            recordCircleAction(session.id, who, "requested a fake call", m.ts);
+            scheduleFakeCall(1);
+            logEvent("circle", `📞 ${who} requested a fake call — scheduled in 1 minute.`, session.id);
+            pushFeed(`📞 ${who} requested a fake call — it's coming in 1 minute.`, "warn");
+            return;
+          }
+          if (m.type === "dm") {
+            const who = m.by || "Your circle";
+            recordCircleAction(session.id, who, "sent a direct message", m.ts);
+            logEvent("circle", `💬 ${who}: ${m.note ?? ""}`, session.id);
+            pushFeed(`💬 ${who}: ${m.note ?? ""}`, "info");
             return;
           }
           pushFeed(`Circle event: ${m.type}`, m.type === "panic" || m.type === "duress" ? "danger" : "warn");
@@ -112,6 +169,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
         const seen = new Map<string, number>();
         sync.onPresence((m) => {
           seen.set(m.name, m.ts);
+          recordPresence(session.id, m.name, m.ts);
           const nowTs = Date.now();
           setWatchers(Array.from(seen.entries()).filter(([, ts]) => nowTs - ts < 45000).map(([n]) => n));
         });
@@ -171,6 +229,7 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
       dead = true;
       clearInterval(timer);
       clearInterval(metaTimer);
+      unregisterConnProbes();
       tracker?.stop();
       broadcastRef.current?.stop();
       syncRef.current?.close();
@@ -211,20 +270,35 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     lockAlarm();
     buzz([500, 200, 500]);
     pushFeed("MISSED CHECK-OUT — circle alerted.", "danger");
-    const key = await importKey(s.keyB64).catch(() => null);
-    if (key && syncRef.current) {
-      const sync = syncRef.current;
-      await sync.publish("alert", { type: "missed-checkout", ts: Date.now(), pos: myPosRef.current ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
-      await sync.publish("state", { state: "panic", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
-    }
+    setCondition(s.id, "missed", 3, "Missed check-out — she didn't check out when expected");
+    logEvent("command", "🚨 MISSED CHECK-OUT — escalation fired, circle alerted on every configured path.", s.id);
     const link = watchLink(window.location.origin, s.id, s.keyB64);
     const pos = myPosRef.current;
-    await alertCircle(settings, circle,
-      `Guardian ALERT (missed check-in): ${settings.displayName || "Someone you protect"} didn't check out.` +
-      (addrRef.current ? ` Location: ${addrRef.current}.` : "") +
-      (pos ? ` Map: ${mapsLink(pos)}` : "") + ` Live view: ${link}`
-    ).catch(() => {});
-    await sendEmergencyPush(settings, "MISSED CHECK-OUT — they did not check out when expected").catch(() => {});
+    const sync = syncRef.current;
+    const door: SyncDoor | undefined = sync
+      ? {
+          connected: () => sync.connected(),
+          send: async () => {
+            await sync.publish("alert", { type: "missed-checkout", ts: Date.now(), pos: pos ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
+            await sync.publish("state", { state: "panic", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
+          },
+        }
+      : undefined;
+    await dispatchMessage({
+      sessionId: s.id,
+      settings,
+      circle,
+      label: "Missed check-out alert",
+      critical: true,
+      probe: getEscalation(s.id).lowSignal,
+      sync: door,
+      smsBody:
+        `Guardian ALERT (missed check-in): ${settings.displayName || "Someone you protect"} didn't check out.` +
+        (addrRef.current ? ` Location: ${addrRef.current}.` : "") +
+        (pos ? ` Map: ${mapsLink(pos)}` : "") + ` Live view: ${link}`,
+      pushTitle: "🆘 GUARDIAN ALERT",
+      pushBody: `${settings.displayName || "Someone in your safety circle"} — MISSED CHECK-OUT — they did not check out when expected. Open your saved Guardian watch link NOW and check on them.`,
+    });
   };
 
   const doCheckOut = async () => {
@@ -241,6 +315,9 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
       await sync.publish("alert", { type: "checkout", ts: Date.now() }, false).catch(() => {});
       await sync.publish("state", { state: "done", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
     }
+    logEvent("checkin", "✅ Checked out — date ended safely.", s.id);
+    logEvent("command", "Checked out — session closed, escalation cleared.", s.id);
+    clearAllConditions(s.id);
     store.saveSession(null);
     props.go("#/");
   };
@@ -256,19 +333,35 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
     lockAlarm();
     buzz([400, 100, 400, 100, 400]);
     pushFeed("PANIC TRIGGERED — circle alerted.", "danger");
+    setCondition(s.id, "panic", 3, "Panic button pressed");
+    logEvent("command", "🆘 PANIC — siren on, alert blasted to the circle.", s.id);
     const sync = syncRef.current;
-    if (sync) {
-      await sync.publish("alert", { type: "panic", ts: Date.now(), pos: myPosRef.current ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
-      await sync.publish("state", { state: "panic", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
-    }
     const link = watchLink(window.location.origin, s.id, s.keyB64);
     const pos = myPosRef.current;
-    alertCircle(settings, circle,
-      `Guardian ALERT (PANIC BUTTON): ${settings.displayName || "Someone you protect"} needs help NOW.` +
-      (addrRef.current ? ` Location: ${addrRef.current}.` : "") +
-      (pos ? ` Map: ${mapsLink(pos)}` : "") + ` Watch: ${link}`
-    ).catch(() => {});
-    sendEmergencyPush(settings, "PANIC BUTTON pressed — they need help NOW").catch(() => {});
+    const door: SyncDoor | undefined = sync
+      ? {
+          connected: () => sync.connected(),
+          send: async () => {
+            await sync.publish("alert", { type: "panic", ts: Date.now(), pos: pos ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
+            await sync.publish("state", { state: "panic", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
+          },
+        }
+      : undefined;
+    void dispatchMessage({
+      sessionId: s.id,
+      settings,
+      circle,
+      label: "Panic alert",
+      critical: true,
+      probe: getEscalation(s.id).lowSignal,
+      sync: door,
+      smsBody:
+        `Guardian ALERT (PANIC BUTTON): ${settings.displayName || "Someone you protect"} needs help NOW.` +
+        (addrRef.current ? ` Location: ${addrRef.current}.` : "") +
+        (pos ? ` Map: ${mapsLink(pos)}` : "") + ` Watch: ${link}`,
+      pushTitle: "🆘 GUARDIAN ALERT",
+      pushBody: `${settings.displayName || "Someone in your safety circle"} — PANIC BUTTON pressed — they need help NOW. Open your saved Guardian watch link NOW and check on them.`,
+    });
     // Offer live camera/mic to the circle (best-effort)
     if (sync) {
       try {
@@ -300,12 +393,15 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
   const sendCoded = async (code: "pizza" | "call" | "pickup" | "talk") => {
     const sync = syncRef.current;
     if (!sync) return;
+    const s = sessionRef.current!;
     if (code === "pizza") {
       await sync.publish("alert", { type: "checkin", ts: Date.now(), note: "🍕 All good" }, false).catch(() => {});
       pushFeed("Sent: 🍕 I'm OK.");
+      logEvent("checkin", "🍕 Check-in sent — I'm OK.", s.id);
     } else {
       await sync.publish("alert", { type: "coded", ts: Date.now(), note: code, pos: myPosRef.current ?? undefined, addr: addrRef.current ?? undefined }, false).catch(() => {});
       pushFeed(code === "pickup" ? "Sent: 🚗 come get me." : code === "call" ? "Sent: 📞 call me." : "Sent: 💬 need to talk.");
+      logEvent("request", code === "pickup" ? "🚗 Coded signal sent: come get me." : code === "call" ? "📞 Coded signal sent: call me." : "💬 Coded signal sent: need to talk.", s.id);
       if (code === "pickup") buzz([300, 100, 300]);
     }
   };
@@ -323,6 +419,11 @@ export default function SessionScreen(props: { discreet: boolean; onBack: () => 
       await sync.publish("alert", { type: "checkin", ts: Date.now(), note: "stood down" }, false).catch(() => {});
       await sync.publish("state", { state: "active", alias: s.alias, startedAt: s.startedAt, expectedMin: s.expectedMin, ts: Date.now() }, true).catch(() => {});
     }
+    clearCondition(s.id, "panic");
+    clearCondition(s.id, "missed");
+    clearCondition(s.id, "rescue");
+    logEvent("checkin", "✅ Stood down — all clear.", s.id);
+    logEvent("command", "Stood down — emergency conditions cleared, all-clear sent to circle.", s.id);
     pushFeed("Stood down — all clear sent to circle.");
   };
 

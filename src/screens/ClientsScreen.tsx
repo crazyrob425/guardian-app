@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { TopBar, Card, Btn } from "../components/ui";
-import { db, type ClientRow, type ClientVerdict } from "../lib/db";
-import { phoneIntel, emailIntel, extractIdentifiers, SCREENING_CHECKS } from "../lib/screening";
+import { db, type ClientRow, type ClientVerdict, type BookingRow } from "../lib/db";
+import { SCREENING_CHECKS } from "../lib/screening";
+import {
+  dossierStrength, computeRollups, contactChannelsOf, findDuplicates, mergeClients,
+  validateDossier, dossierRoute,
+} from "../lib/dossier";
+import { extractFacts, extractFromImport, applyFacts, type CandidateFact } from "../lib/extract";
+import ExtractionReview from "../components/ExtractionReview";
 
 const VERDICTS: { id: ClientVerdict; label: string; cls: string }[] = [
   { id: "ok", label: "OK", cls: "bg-emerald-500/15 text-emerald-300" },
@@ -10,45 +16,110 @@ const VERDICTS: { id: ClientVerdict; label: string; cls: string }[] = [
   { id: "unknown", label: "Unscreened", cls: "bg-white/10 text-zinc-300" },
 ];
 
+type Filter = "all" | "regulars" | "avoid" | "verified" | "unverified" | "refs";
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "regulars", label: "⭐ Regulars" },
+  { id: "avoid", label: "🚫 Avoid" },
+  { id: "verified", label: "✓ Verified" },
+  { id: "unverified", label: "Unverified" },
+  { id: "refs", label: "Has references" },
+];
+
+const go = (r: string) => { window.location.hash = r; };
+
+function blankClient(): ClientRow {
+  return {
+    name: "", phone: "", phoneE164: "", email: "", handle: "",
+    verdict: "unknown", flags: [], checks: {}, notes: "",
+    createdAt: Date.now(), updatedAt: Date.now(), lastSeenAt: null,
+    aliases: [], extraChannels: [], tags: [], incidents: [], commsLog: [],
+  };
+}
+
+type ImportState =
+  | { mode: "closed" }
+  | { mode: "paste" }
+  | { mode: "review"; facts: CandidateFact[]; rawText: string };
+
 /**
- * Private client log + screening pack (Phase 2). Everything lives ONLY in
- * this device's database — never synced, never uploaded. Screening hints
- * (VoIP, disposable email) are computed on-device and worded as hints.
+ * Contact manager (2026-11-05): the searchable/filterable client list
+ * in front of the full dossier page. Everything lives ONLY in this
+ * device's database — never synced, never uploaded. The conversation
+ * import here runs the same extraction-review gate as the dossier:
+ * Guardian proposes facts from a pasted/imported thread, she confirms,
+ * and duplicates merge instead of twinning.
  */
 export default function ClientsScreen(props: { onBack: () => void }) {
   const [clients, setClients] = useState<ClientRow[]>([]);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | "regulars" | "avoid">("all");
-  const [editing, setEditing] = useState<ClientRow | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [importState, setImportState] = useState<ImportState>({ mode: "closed" });
+  const [pasteText, setPasteText] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const shotRef = useRef<HTMLInputElement>(null);
 
   const reload = async () => {
-    const rows = await db.clients.orderBy("updatedAt").reverse().toArray();
+    const [rows, bs] = await Promise.all([
+      db.clients.orderBy("updatedAt").reverse().toArray(),
+      db.bookings.toArray().catch(() => [] as BookingRow[]),
+    ]);
     setClients(rows);
+    setBookings(bs);
   };
   useEffect(() => { void reload(); }, []);
 
   const filtered = clients.filter((c) => {
     if (filter === "regulars" && !c.regular) return false;
     if (filter === "avoid" && c.verdict !== "avoid") return false;
+    if (filter === "verified" && c.verifiedStatus !== "yes") return false;
+    if (filter === "unverified" && c.verifiedStatus === "yes") return false;
+    if (filter === "refs" && !(c.references ?? []).some((r) => r.name.trim() || r.contact.trim())) return false;
     const needle = q.replace(/\D/g, "");
+    const channels = contactChannelsOf(c).map((ch) => ch.value.toLowerCase()).join(" ");
     return (
       c.name.toLowerCase().includes(q.toLowerCase()) ||
-      c.handle.toLowerCase().includes(q.toLowerCase()) ||
-      (needle.length >= 3 && c.phone.replace(/\D/g, "").includes(needle)) ||
-      c.email.toLowerCase().includes(q.toLowerCase())
+      (c.aliases ?? []).join(" ").toLowerCase().includes(q.toLowerCase()) ||
+      channels.includes(q.toLowerCase()) ||
+      (needle.length >= 3 && c.phone.replace(/\D/g, "").includes(needle))
     );
   });
 
-  const newClient = () => setEditing({
-    name: "", phone: "", phoneE164: "", email: "", handle: "",
-    verdict: "unknown", flags: [], checks: {}, notes: "",
-    createdAt: Date.now(), updatedAt: Date.now(), lastSeenAt: null,
-  });
+  // ---- conversation import → review → create / merge / hand off -------------
+  const applyImport = async (selected: CandidateFact[], saveRawText: boolean) => {
+    if (importState.mode !== "review") return;
+    const draft = applyFacts(blankClient(), selected, { rawText: importState.rawText, saveRawText });
+    setImportState({ mode: "closed" });
+    setPasteText("");
+    const all = await db.clients.toArray().catch(() => [] as ClientRow[]);
+    const dupes = findDuplicates(draft, all);
+    if (dupes.length) {
+      // Same person: fold the confirmed facts into the existing dossier.
+      const merged = mergeClients(dupes[0].client, draft);
+      if (merged.id) await db.clients.put({ ...merged, updatedAt: Date.now() });
+      go(dossierRoute(merged.id!));
+      return;
+    }
+    if (validateDossier(draft).ok) {
+      const id = await db.clients.add(draft);
+      go(dossierRoute(id));
+      return;
+    }
+    // Not enough for a record yet (no name): hand the confirmed facts to
+    // the new-dossier page as a draft rather than dropping them.
+    try { localStorage.setItem("guardian.dossier-draft.v1", JSON.stringify(draft)); } catch { /* noop */ }
+    go(dossierRoute("new"));
+  };
 
-  /** OCR a screenshot on demand (tesseract.js lazy-loaded from CDN; the image never uploads). */
+  const importFile = async (file: File) => {
+    const text = await file.text();
+    setImportState({ mode: "review", facts: extractFromImport(file.name, text), rawText: text });
+  };
+
+  /** OCR a screenshot on demand → the SAME extraction review as text imports. */
   const scanScreenshot = async (file: File) => {
     setScanning(true);
     setScanMsg("Reading screenshot on this device…");
@@ -64,22 +135,8 @@ export default function ClientsScreen(props: { onBack: () => void }) {
         });
       }
       const res = await w.Tesseract!.recognize(file, "eng");
-      const ids = extractIdentifiers(res.data.text);
-      if (!ids.phones.length && !ids.emails.length) {
-        setScanMsg("No phone number or email found in that screenshot.");
-        return;
-      }
-      const base = editing ?? {
-        name: "", phone: "", phoneE164: "", email: "", handle: "",
-        verdict: "unknown" as ClientVerdict, flags: [], checks: {}, notes: "",
-        createdAt: Date.now(), updatedAt: Date.now(), lastSeenAt: null,
-      };
-      setEditing({
-        ...base,
-        phone: base.phone || ids.phones[0] || "",
-        email: base.email || ids.emails[0] || "",
-      });
-      setScanMsg(`Found ${ids.phones.length} number(s), ${ids.emails.length} email(s) — filled in below. Check them before saving.`);
+      setScanMsg("");
+      setImportState({ mode: "review", facts: extractFacts(res.data.text), rawText: res.data.text });
     } catch (e) {
       setScanMsg(e instanceof Error ? e.message : "Scan failed");
     } finally {
@@ -87,189 +144,111 @@ export default function ClientsScreen(props: { onBack: () => void }) {
     }
   };
 
-  if (editing) {
-    return <ClientEditor row={editing} scanning={scanning} scanMsg={scanMsg}
-      onScan={(f) => void scanScreenshot(f)}
-      onClose={() => { setEditing(null); setScanMsg(""); void reload(); }} />;
-  }
+  const startDate = (c: ClientRow) => {
+    try {
+      localStorage.setItem("guardian.prefill.v1", JSON.stringify({ alias: c.name || c.handle || "Date", durationMin: 60, location: "", clientId: c.id }));
+    } catch { /* noop */ }
+    go("#/date");
+  };
+
+  const msgHref = (c: ClientRow): string => {
+    const ch = contactChannelsOf(c)[0];
+    if (!ch) return "";
+    if (ch.kind === "phone") return `sms:${ch.value.replace(/[^+\d]/g, "")}`;
+    if (ch.kind === "email") return `mailto:${ch.value}`;
+    return "";
+  };
 
   return (
     <div className="min-h-dvh pb-10">
-      <TopBar title="Client log" onBack={props.onBack} />
+      <TopBar title="Client dossiers" onBack={props.onBack} />
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
         <Card>
-          <p className="mb-2 text-sm text-zinc-300">Your private screening log. It lives <strong>only on this phone</strong> — never uploaded, never synced, never shared. Checks you run here are not logged anywhere.</p>
-          <div className="mb-2 grid grid-cols-3 gap-2">
-            {(["all", "regulars", "avoid"] as const).map((f) => (
-              <button key={f} onClick={() => setFilter(f)} className={`rounded-xl px-2 py-1.5 text-xs font-semibold ${filter === f ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-zinc-400"}`}>{f === "all" ? "All" : f === "regulars" ? "⭐ Regulars" : "🚫 Avoid"}</button>
+          <p className="mb-2 text-sm text-zinc-300">Your private contact manager. It lives <strong>only on this phone</strong> — never uploaded, never synced, never shared. Only a name and one way to reach him are ever required; the dossier grows as facts show up.</p>
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {FILTERS.map((f) => (
+              <button key={f.id} onClick={() => setFilter(f.id)} className={`rounded-xl px-2.5 py-1.5 text-xs font-semibold ${filter === f.id ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-zinc-400"}`}>{f.label}</button>
             ))}
           </div>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, handle, email, or number…"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, alias, handle, email, or number…"
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600" />
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Btn variant="primary" onClick={newClient}>+ Add client</Btn>
-            <Btn onClick={() => fileRef.current?.click()} disabled={scanning}>{scanning ? "Scanning…" : "📷 Scan a screenshot"}</Btn>
+            <Btn variant="primary" onClick={() => go(dossierRoute("new"))}>+ Add client</Btn>
+            <Btn onClick={() => setImportState({ mode: "paste" })}>📥 Import conversation</Btn>
+            <Btn onClick={() => fileRef.current?.click()}>📁 Import file</Btn>
+            <Btn onClick={() => shotRef.current?.click()} disabled={scanning}>{scanning ? "Scanning…" : "📷 Scan a screenshot"}</Btn>
           </div>
           {scanMsg && <p className="mt-2 text-xs text-amber-300">{scanMsg}</p>}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          <input ref={fileRef} type="file" accept=".txt,.json,.vcf,text/plain,application/json" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = ""; }} />
+          <input ref={shotRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanScreenshot(f); e.target.value = ""; }} />
         </Card>
 
+        {importState.mode === "paste" && (
+          <Card>
+            <p className="mb-2 text-sm font-semibold text-zinc-100">Paste a conversation</p>
+            <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)}
+              placeholder="Paste the message thread here. Guardian reads it on this phone only, pulls out candidate facts, and shows them for your confirmation — nothing is saved without your say-so."
+              className="min-h-36 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600" />
+            <div className="mt-2 flex gap-2">
+              <Btn variant="primary" disabled={!pasteText.trim()}
+                onClick={() => setImportState({ mode: "review", facts: extractFacts(pasteText), rawText: pasteText })}>Read it</Btn>
+              <Btn onClick={() => { setImportState({ mode: "closed" }); setPasteText(""); }}>Cancel</Btn>
+            </div>
+          </Card>
+        )}
+        {importState.mode === "review" && (
+          <ExtractionReview facts={importState.facts} rawText={importState.rawText}
+            onApply={(sel, saveRaw) => void applyImport(sel, saveRaw)} onCancel={() => setImportState({ mode: "closed" })} />
+        )}
+
         {filtered.length === 0 && (
-          <p className="py-6 text-center text-sm text-zinc-600">{clients.length ? "No matches." : "No clients logged yet. Add one before a date and run the checklist — future you says thanks."}</p>
+          <p className="py-6 text-center text-sm text-zinc-600">{clients.length ? "No matches." : "No clients logged yet. Add one, or import a conversation and let Guardian build the first draft."}</p>
         )}
         {filtered.map((c) => {
           const v = VERDICTS.find((x) => x.id === c.verdict) ?? VERDICTS[3];
           const doneChecks = SCREENING_CHECKS.filter((k) => c.checks[k.id]).length;
+          const roll = computeRollups(c, bookings);
+          const strength = dossierStrength(c, roll);
+          const refs = (c.references ?? []).filter((r) => r.name.trim() || r.contact.trim());
+          const href = msgHref(c);
           return (
-            <button key={c.id} onClick={() => setEditing(c)} className="w-full text-left">
-              <Card className="transition hover:border-white/25">
+            <Card key={c.id} className="transition hover:border-white/25">
+              <button onClick={() => c.id && go(dossierRoute(c.id))} className="w-full text-left">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-zinc-100">{c.regular ? "⭐ " : ""}{c.name || c.handle || c.phone || "Unnamed"}</p>
-                    <p className="truncate text-xs text-zinc-500">{[c.phone, c.handle && `@${c.handle}`, c.email].filter(Boolean).join(" · ")}</p>
+                    <p className="truncate font-semibold text-zinc-100">{c.regular ? "⭐ " : ""}{c.name || c.handle || c.phone || "Unnamed"}{c.verifiedStatus === "yes" ? " · ✓" : ""}</p>
+                    <p className="truncate text-xs text-zinc-500">{[c.phone, c.handle && `@${c.handle}`, c.email].filter(Boolean).join(" · ") || "No contact channel yet"}</p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${v.cls}`}>{v.label}</span>
                 </div>
-                <p className="mt-1.5 text-xs text-zinc-600">Screening {doneChecks}/{SCREENING_CHECKS.length}{c.flags.length ? ` · ⚑ ${c.flags.length} hint${c.flags.length === 1 ? "" : "s"}` : ""}{c.lastSeenAt ? ` · last seen ${new Date(c.lastSeenAt).toLocaleDateString()}` : ""}{(c.noShows ?? 0) > 0 ? ` · ${c.noShows} no-show${(c.noShows ?? 0) > 1 ? "s" : ""}` : ""}</p>
-              </Card>
-            </button>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${strength.pct}%` }} />
+                  </div>
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Dossier {strength.pct}%</span>
+                </div>
+                <p className="mt-1.5 text-xs text-zinc-600">
+                  Screening {doneChecks}/{SCREENING_CHECKS.length}
+                  {c.flags.length ? ` · ⚑ ${c.flags.length} hint${c.flags.length === 1 ? "" : "s"}` : ""}
+                  {roll.totalDates ? ` · ${roll.totalDates} date${roll.totalDates === 1 ? "" : "s"} done` : ""}
+                  {refs.length ? ` · ${refs.length} ref${refs.length === 1 ? "" : "s"}` : ""}
+                  {c.lastSeenAt ? ` · last seen ${new Date(c.lastSeenAt).toLocaleDateString()}` : ""}
+                  {roll.noShows > 0 ? ` · ${roll.noShows} no-show${roll.noShows > 1 ? "s" : ""}` : ""}
+                </p>
+              </button>
+              <div className="mt-3 grid grid-cols-4 gap-1.5">
+                <button onClick={() => startDate(c)} className="rounded-lg bg-emerald-500/15 px-2 py-2 text-xs font-semibold text-emerald-300">▶ Start date</button>
+                <button onClick={() => go("#/bookings")} className="rounded-lg bg-white/5 px-2 py-2 text-xs font-semibold text-zinc-200">+ Booking</button>
+                {href
+                  ? <a href={href} className="rounded-lg bg-white/5 px-2 py-2 text-center text-xs font-semibold text-zinc-200">✉ Message</a>
+                  : <span className="rounded-lg bg-white/[0.02] px-2 py-2 text-center text-xs font-semibold text-zinc-600">✉ Message</span>}
+                <button onClick={() => c.id && go(dossierRoute(c.id))} className="rounded-lg bg-white/5 px-2 py-2 text-xs font-semibold text-zinc-200">Dossier →</button>
+              </div>
+            </Card>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function ClientEditor(props: {
-  row: ClientRow;
-  scanning: boolean;
-  scanMsg: string;
-  onScan: (f: File) => void;
-  onClose: () => void;
-}) {
-  const [row, setRow] = useState<ClientRow>(props.row);
-  const [saved, setSaved] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-  const phone = phoneIntel(row.phone);
-  const email = emailIntel(row.email);
-  const set = (patch: Partial<ClientRow>) => setRow((r) => ({ ...r, ...patch }));
-
-  const save = async () => {
-    const flags = Array.from(new Set([...phone.flags, ...email.flags]));
-    const out: ClientRow = { ...row, phoneE164: phone.e164, flags, updatedAt: Date.now() };
-    if (out.id) await db.clients.put(out);
-    else out.id = await db.clients.add(out);
-    setRow(out);
-    setSaved("Saved — on this device only.");
-    setTimeout(() => setSaved(""), 2500);
-  };
-
-  const remove = async () => {
-    if (row.id && window.confirm("Delete this client record from this device? This cannot be undone.")) {
-      await db.clients.delete(row.id);
-      props.onClose();
-    }
-  };
-
-  const input = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600";
-  const label = "mb-1 block text-xs uppercase tracking-widest text-zinc-500";
-
-  return (
-    <div className="min-h-dvh pb-10">
-      <TopBar title={row.id ? "Client record" : "New client"} onBack={props.onClose} />
-      <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
-        <Card>
-          <div className="space-y-3">
-            <div><label className={label}>Name</label>
-              <input className={input} value={row.name} onChange={(e) => set({ name: e.target.value })} placeholder="Real name (from screening)" /></div>
-            <div><label className={label}>Phone</label>
-              <input className={input} value={row.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+1 555 123 4567" inputMode="tel" />
-              {row.phone && (
-                <p className="mt-1 text-xs text-zinc-500">
-                  {phone.valid ? `${phone.e164} · ${phone.country} · ${phone.typeLabel}` : "Not a recognized number yet"}
-                </p>
-              )}
-              {phone.flags.map((f) => <p key={f} className="mt-1 text-xs text-amber-300">⚑ {f}</p>)}
-            </div>
-            <div><label className={label}>Email</label>
-              <input className={input} value={row.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@example.com" inputMode="email" />
-              {email.flags.map((f) => <p key={f} className="mt-1 text-xs text-amber-300">⚑ {f}</p>)}
-            </div>
-            <div><label className={label}>Booking handle / username</label>
-              <input className={input} value={row.handle} onChange={(e) => set({ handle: e.target.value })} placeholder="Where they booked from" /></div>
-            <div><label className={label}>Verdict</label>
-              <div className="grid grid-cols-4 gap-2">
-                {VERDICTS.map((v) => (
-                  <button key={v.id} onClick={() => set({ verdict: v.id })}
-                    className={`rounded-xl px-2 py-2 text-xs font-bold ${row.verdict === v.id ? v.cls + " ring-2 ring-white/40" : "bg-white/5 text-zinc-400"}`}>{v.label}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Btn className="!w-auto !px-4" onClick={() => fileRef.current?.click()} disabled={props.scanning}>
-              {props.scanning ? "Scanning…" : "📷 Fill from screenshot"}
-            </Btn>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onScan(f); e.target.value = ""; }} />
-          </div>
-          {props.scanMsg && <p className="mt-2 text-xs text-amber-300">{props.scanMsg}</p>}
-        </Card>
-
-        <Card>
-          <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">Screening checklist</p>
-          <div className="space-y-2">
-            {SCREENING_CHECKS.map((c) => (
-              <label key={c.id} className="flex cursor-pointer items-center gap-3 text-sm text-zinc-300">
-                <input type="checkbox" checked={!!row.checks[c.id]}
-                  onChange={(e) => set({ checks: { ...row.checks, [c.id]: e.target.checked } })}
-                  className="h-5 w-5 accent-emerald-500" />
-                {c.label}
-              </label>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">Regulars book</p>
-          <label className="flex cursor-pointer items-center gap-3 text-sm text-zinc-300">
-            <input type="checkbox" checked={!!row.regular} onChange={(e) => set({ regular: e.target.checked })} className="h-5 w-5 accent-emerald-500" />
-            ⭐ This is a regular
-          </label>
-          <p className="mb-1 mt-3 text-xs text-zinc-500">Permission to re-contact them?</p>
-          <div className="grid grid-cols-3 gap-2">
-            {(["unknown", "yes", "no"] as const).map((v) => (
-              <button key={v} onClick={() => set({ rebook: v })} className={`rounded-xl px-2 py-2 text-xs font-bold ${(row.rebook ?? "unknown") === v ? "bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-400/40" : "bg-white/5 text-zinc-400"}`}>{v === "unknown" ? "Not asked" : v === "yes" ? "Yes — ask me" : "Never"}</button>
-            ))}
-          </div>
-          <p className="mb-1 mt-3 text-xs text-zinc-500">Follow-up flow — deniable, permission-based. Tap to copy, send it yourself, and stamp it done.</p>
-          <div className="space-y-2">
-            {([
-              ["thanks", "1 · Thank-you", `Hi ${row.name || "there"} — thank you for a lovely time. I really enjoyed meeting you. 💋`],
-              ["review", "2 · Review ask", "If you had a good time, a kind word where you found me helps me more than you know. No pressure at all."],
-              ["recontact", "3 · Re-invite", "I'll be around this week if you'd like to do that again sometime. No worries either way."],
-            ] as const).map(([k, label2, text]) => (
-              <div key={k} className="flex items-center justify-between gap-2">
-                <span className="text-sm text-zinc-300">{label2}{row.followUps?.[k] ? <span className="ml-2 text-xs text-emerald-300">✓ {new Date(row.followUps[k]!).toLocaleDateString()}</span> : ""}</span>
-                <button onClick={async () => { try { await navigator.clipboard.writeText(text); } catch { /* noop */ } set({ followUps: { ...(row.followUps ?? {}), [k]: Date.now() } }); }} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100">Copy + stamp</button>
-              </div>
-            ))}
-          </div>
-          {(row.noShows ?? 0) > 0 && <p className="mt-3 text-xs text-amber-300">⚑ {row.noShows} no-show(s) on record.</p>}
-        </Card>
-
-        <Card>
-          <label className={label}>Private notes</label>
-          <textarea className={input + " min-h-24"} value={row.notes} onChange={(e) => set({ notes: e.target.value })}
-            placeholder="Preferences, boundaries, how the date went, anything future-you needs. Never leaves this phone." />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Btn variant="primary" onClick={() => void save()}>Save record</Btn>
-            <Btn onClick={() => set({ lastSeenAt: Date.now() })}>Mark seen today</Btn>
-            {row.id && <Btn variant="danger" onClick={() => void remove()}>Delete</Btn>}
-          </div>
-          {saved && <p className="mt-2 text-sm text-emerald-300">{saved}</p>}
-        </Card>
       </div>
     </div>
   );

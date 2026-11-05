@@ -50,6 +50,30 @@ export interface ClientRow {
   rebook?: "unknown" | "yes" | "no"; // permission to re-contact
   followUps?: { thanks?: number; review?: number; recontact?: number };
   noShows?: number;
+  // Phase 8 (Low Signal / C&C): per-field circle-share consent for status
+  // pings. ALL default OFF — a field is only ever sent to the circle when
+  // the user has explicitly toggled it on for this client.
+  shareNotes?: boolean;
+  shareRatings?: boolean;
+  shareHistory?: boolean;
+  // Dossier / contact manager (2026-11-05): every field below is OPTIONAL
+  // and non-indexed — a dossier saves with just a name + one contact
+  // channel. Types live in lib/dossier.ts; they are declared structurally
+  // here to keep db.ts dependency-free.
+  aliases?: string[];
+  extraChannels?: { id: string; kind: "phone" | "email" | "handle" | "other"; label: string; value: string }[];
+  source?: string; // platform / where they first made contact
+  firstContactAt?: number | null;
+  depositRequired?: boolean;
+  servicePref?: "" | "incall" | "outcall" | "both";
+  verifiedStatus?: "yes" | "no" | "in-progress";
+  references?: { name: string; contact: string; sentiment: "positive" | "neutral" | "negative"; confirmed: boolean }[];
+  screenDetails?: { age?: string; occupation?: string; vehicle?: string; socials?: string; idChecked?: boolean };
+  preferences?: string;
+  boundaries?: string;
+  incidents?: { id: string; ts: number; severity: "note" | "caution" | "serious"; text: string }[];
+  tags?: string[];
+  commsLog?: { id: string; ts: number; channel: string; text: string }[];
 }
 
 export interface Outbox2Row {
@@ -80,6 +104,19 @@ export interface BookingRow {
   status: "booked" | "done" | "noshow" | "cancelled";
   clientId?: number;
   note: string;
+  rating?: number; // Phase 8: user's private 1–5 rating after this date
+}
+
+/** Phase 8: the on-device event/command log behind the news ticker and
+ * the Command & Control screen. Device-local only, like everything here. */
+export type EventKind = "status" | "command" | "circle" | "checkin" | "request";
+
+export interface EventRow {
+  id?: number;
+  sessionId: string; // "" = app-wide (no active session)
+  ts: number;
+  kind: EventKind;
+  text: string;
 }
 
 export interface VaultRow {
@@ -109,6 +146,7 @@ class GuardianDB extends Dexie {
   bookings!: Table<BookingRow, number>;
   vault!: Table<VaultRow, number>;
   places!: Table<PlaceRow, number>;
+  events!: Table<EventRow, number>;
 
   constructor() {
     super("guardian-db");
@@ -131,6 +169,12 @@ class GuardianDB extends Dexie {
       bookings: "++id, ts, status",
       vault: "++id, ts",
       places: "++id, name",
+    });
+    // v5 (Phase 8): event/command log for the ticker + Command & Control;
+    // bookings gain a clientId index so the dossier can list date history.
+    this.version(5).stores({
+      events: "++id, sessionId, ts, kind",
+      bookings: "++id, ts, status, clientId",
     });
   }
 }

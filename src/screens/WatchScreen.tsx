@@ -88,6 +88,7 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
           setAlerts((a) => [m, ...a].slice(0, 20));
           if (m.type === "panic" || m.type === "duress" || m.type === "missed-checkout") escalateLocal(m);
           if (m.type === "coded" && m.note === "pickup") escalateLocal(m);
+          if (m.type === "quick" && /NEED HELP|violent|RESCUE/i.test(m.note ?? "")) escalateLocal(m);
           if (m.type === "checkout") setMyAck(null);
         });
         // Presence heartbeat: she can see that someone is watching.
@@ -137,6 +138,21 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
     setMyAck(kind);
   };
 
+  /** Phase 8 remote commands: ask her app for status, stream, or a fake call. */
+  const [cmdSent, setCmdSent] = useState("");
+  const sendCommand = async (kind: "status-request" | "stream-request" | "fakecall-request") => {
+    const sync = syncRef.current;
+    if (!sync) return;
+    const name = myName.trim() || "A friend";
+    await sync.publish("alert", { type: kind, ts: Date.now(), by: name }, false).catch(() => {});
+    setCmdSent(
+      kind === "status-request" ? "Status request sent — her reply appears below when it lands."
+      : kind === "stream-request" ? "Stream request sent — if she accepts, the camera card above goes live."
+      : "Fake call requested — her phone will ring in about a minute."
+    );
+    setTimeout(() => setCmdSent(""), 6000);
+  };
+
   const markers: MapMarker[] = [];
   if (providerPos) markers.push({ id: "p", pos: providerPos, color: "#34d399", label: "Them" });
   if (clientPos) markers.push({ id: "c", pos: clientPos, color: "#60a5fa", label: "Guest" });
@@ -183,6 +199,16 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
           <label className="mb-1 block text-xs uppercase tracking-widest text-zinc-500">{t("watch.yourName")}</label>
           <input value={myName} onChange={(e) => { setMyName(e.target.value); try { localStorage.setItem("guardian.watcherName", e.target.value); } catch { /* noop */ } }}
             placeholder="e.g. Maria" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600" />
+        </Card>
+        <Card>
+          <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">Ask her app</p>
+          <div className="grid grid-cols-3 gap-2">
+            <Btn onClick={() => void sendCommand("status-request")}>📋 Full status</Btn>
+            <Btn onClick={() => void sendCommand("stream-request")}>🎥 Live stream</Btn>
+            <Btn onClick={() => void sendCommand("fakecall-request")}>📞 Fake call</Btn>
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">Full status answers with the facts she chose to share — her private notes stay private unless she turned sharing on.</p>
+          {cmdSent && <p className="mt-2 text-sm text-emerald-300">{cmdSent}</p>}
         </Card>
         <Card>
           <div className="mb-2 flex items-center justify-between">
@@ -240,10 +266,17 @@ export default function WatchScreen(props: { sessionId: string; keyB64: string }
                   a.type === "ack" ? `👁 ${a.by || "A watcher"} acknowledged (${a.note})` :
                   a.type === "checkin" ? `✅ Check-in${a.note ? ` — ${a.note}` : ""}` :
                   a.type === "checkout" ? "✅ Checked out — safe" :
+                  a.type === "status-reply" ? `📋 Full status from ${a.by || "her"}:` :
+                  a.type === "status-request" ? `📋 ${a.by || "A watcher"} requested a full status` :
+                  a.type === "stream-request" ? `🎥 ${a.by || "A watcher"} requested the live stream` :
+                  a.type === "fakecall-request" ? `📞 ${a.by || "A watcher"} requested a fake call` :
+                  a.type === "quick" ? `⚡ Her request: ${a.note ?? ""}` :
+                  a.type === "dm" ? `💬 ${a.by || "Message"}: ${a.note ?? ""}` :
                   `${a.type}${a.note ? ` — ${a.note}` : ""}`;
                 return (
                   <li key={i} className={`text-sm ${["panic", "duress", "missed-checkout"].includes(a.type) || (a.type === "coded" && a.note === "pickup") ? "text-red-300 font-semibold" : "text-zinc-400"}`}>
                     <span className="mr-2 text-xs text-zinc-600">{new Date(a.ts).toLocaleTimeString()}</span>{label}{a.addr ? <span className="block text-xs text-zinc-500">{a.addr}</span> : null}
+                    {a.type === "status-reply" && a.data ? <span className="mt-1 block whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-xs font-normal leading-relaxed text-zinc-300">{a.data}</span> : null}
                   </li>
                 );
               })}

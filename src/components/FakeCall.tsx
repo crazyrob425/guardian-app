@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { buzz } from "../lib/audio";
 import { getPersona } from "../lib/personas";
 import { LiveCall, REPLY_CHIPS, type LiveCallEvent } from "../lib/livecall";
+import { warmPersonaVoice } from "../lib/tts";
 
 export type FakeCallTheme = "auto" | "ios" | "samsung" | "pixel" | "classic";
 export type ResolvedTheme = Exclude<FakeCallTheme, "auto">;
@@ -25,9 +26,10 @@ const THEME_BG: Record<ResolvedTheme, string> = {
 /**
  * Full-screen fake incoming call (v0.10): skinned to look like the call
  * screen of her actual phone (iPhone / Samsung One UI / Pixel / classic),
- * and — in live mode — the caller actually TALKS with her: the phone's own
- * speech synthesis + recognition run a branching persona script, free,
- * on-device, no server. Recorded-script mode remains for the classic Mom
+ * and — in live mode — the caller actually TALKS with her: a neural
+ * voice from Guardian's own TTS service (device speech synthesis only
+ * as an offline fallback) plus speech recognition run a branching
+ * persona script. Recorded-script mode remains for the classic Mom
  * recording.
  */
 export default function FakeCall(props: {
@@ -50,6 +52,9 @@ export default function FakeCall(props: {
   const callRef = useRef<LiveCall | null>(null);
 
   useEffect(() => {
+    // While it rings, pre-render the caller's neural voice (opening
+    // lines first) so she sounds human the second the call is answered.
+    if (props.live) warmPersonaVoice(persona);
     const ring = new Audio("/sounds/ringtone.mp3");
     ring.loop = true;
     ringRef.current = ring;

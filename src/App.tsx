@@ -9,6 +9,7 @@ import WatchScreen from "./screens/WatchScreen";
 import PaymentsScreen from "./screens/PaymentsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import ClientsScreen from "./screens/ClientsScreen";
+import DossierScreen from "./screens/DossierScreen"; // Dossier/contact-manager (2026-11-05)
 import UpdateToast from "./components/UpdateToast";
 import DecoyScreen from "./components/DecoyScreen";
 import LedgerScreen from "./screens/LedgerScreen";
@@ -16,6 +17,12 @@ import BookingsScreen from "./screens/BookingsScreen";
 import VaultScreen from "./screens/VaultScreen";
 import PlacesScreen from "./screens/PlacesScreen";
 import SetupWizard from "./screens/SetupWizard";
+import CommandScreen from "./screens/CommandScreen";
+import NewsTicker from "./components/NewsTicker";
+import { startConnectivityMonitor } from "./lib/connectivity";
+import { logEvent } from "./lib/events";
+import { takeDueFollowUps } from "./lib/quickrequests";
+import { runFollowUp } from "./lib/dispatch";
 import { getSetup } from "./lib/setup";
 import FakeCall from "./components/FakeCall";
 import { fakeCallDue, clearFakeCall } from "./lib/fakecall";
@@ -36,7 +43,8 @@ type Route =
   | { name: "circle" } | { name: "payments" } | { name: "settings" }
   | { name: "clients" }
   | { name: "ledger" } | { name: "bookings" } | { name: "vault" } | { name: "places" }
-  | { name: "setup" }
+  | { name: "setup" } | { name: "command" }
+  | { name: "dossier"; id?: number } // Dossier/contact-manager (2026-11-05): #/dossier/<id> or #/dossier/new
   | { name: "client"; id: string; k: string }
   | { name: "watch"; id: string; k: string };
 
@@ -47,6 +55,8 @@ function parseHash(): Route {
   const segs = pathPart.split("/").filter(Boolean);
   const q = new URLSearchParams(queryPart || "");
   if (segs[0] === "client" && segs[1]) return { name: "client", id: segs[1], k: q.get("k") || "" };
+  // Dossier/contact-manager (2026-11-05): deep link into one client's dossier.
+  if (segs[0] === "dossier") return { name: "dossier", id: segs[1] && segs[1] !== "new" ? parseInt(segs[1], 10) || undefined : undefined };
   if (segs[0] === "watch" && segs[1]) return { name: "watch", id: segs[1], k: q.get("k") || "" };
   switch (segs[0]) {
     case "date": return { name: "date" };
@@ -60,6 +70,7 @@ function parseHash(): Route {
     case "vault": return { name: "vault" };
     case "places": return { name: "places" };
     case "setup": return { name: "setup" };
+    case "command": return { name: "command" };
     default: return { name: "home" };
   }
 }
@@ -118,8 +129,27 @@ export default function App() {
 
   const deadmanOk = () => {
     try { localStorage.setItem("guardian.deadman.v1", String(Date.now())); } catch { /* noop */ }
+    logEvent("checkin", "✅ Dead-man's check-in answered — I'm OK.", store.getSession()?.id ?? "");
     setDeadmanDue(false);
   };
+
+  // Phase 8: connectivity monitor (Low Signal Mode driver) — advisory
+  // only, it can never block a safety path. Runs app-wide once.
+  useEffect(() => { startConnectivityMonitor(); }, []);
+
+  // Phase 8: scheduled quick-request follow-ups (door knocks, siren
+  // triggers) fire from here so they survive navigation between screens.
+  useEffect(() => {
+    if (!unlocked || decoy) return;
+    const t = window.setInterval(() => {
+      const s = store.getSession();
+      if (!s) return;
+      for (const fu of takeDueFollowUps(s.id, Date.now())) {
+        void runFollowUp(fu, s);
+      }
+    }, 5000);
+    return () => window.clearInterval(t);
+  }, [unlocked, decoy]);
 
   // Fake rescue call host: fires the scheduled call from any screen.
   useEffect(() => {
@@ -159,7 +189,10 @@ export default function App() {
   const handleUnlock = async (duress: boolean) => {
     setUnlocked(true);
     try { localStorage.setItem("guardian.deadman.v1", String(Date.now())); } catch { /* noop */ }
-    if (!duress) return;
+    if (!duress) {
+      logEvent("checkin", "✅ App unlocked — proof of life.", store.getSession()?.id ?? "");
+      return;
+    }
     try {
       const s = store.getSettings();
       const circle = store.getCircle();
@@ -176,6 +209,7 @@ export default function App() {
   const panicNow = async () => {
     const s = store.getSettings();
     const circle = store.getCircle();
+    logEvent("command", "🆘 SOS fired from the home screen — siren on, circle alerted.", store.getSession()?.id ?? "");
     startSiren();
     lockAlarm();
     try {
@@ -247,6 +281,12 @@ export default function App() {
     case "setup":
       screen = <SetupWizard go={go} onDone={refresh} />;
       break;
+    case "command":
+      screen = <CommandScreen onBack={back} go={go} />;
+      break;
+    case "dossier": // Dossier/contact-manager (2026-11-05)
+      screen = <DossierScreen clientId={route.id} onBack={() => go("#/clients")} go={go} />;
+      break;
     case "settings":
       screen = <SettingsScreen onBack={back} onChanged={refresh} />;
       break;
@@ -297,6 +337,15 @@ export default function App() {
           live={settings.fakeCallLive}
           onDone={() => { clearFakeCall(); setFakeRinging(false); }}
         />
+      )}
+      {/* Phase 8 news ticker: rides the bottom of every owner screen;
+          guests (watch/client links) never see it. Spacer keeps page
+          content clear of the fixed bar. */}
+      {route.name !== "client" && route.name !== "watch" && (
+        <>
+          <div className="h-11" />
+          <NewsTicker go={go} onDecoy={() => { setDecoy(true); setUnlocked(true); }} />
+        </>
       )}
       <ErrorBoundary
         onError={(e) => { void logDiagnostic(e instanceof Error ? e.message : String(e), `route:${route.name}`); }}

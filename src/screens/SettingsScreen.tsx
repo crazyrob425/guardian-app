@@ -8,6 +8,7 @@ import { sendSms } from "../lib/sms";
 import { genTopic, sendPush, circleInviteText, ntfyConfigured } from "../lib/notify";
 import { shareLink, type SharePayload } from "../lib/share";
 import ShareSheet from "../components/ShareSheet";
+import BackupPathsCard from "../components/BackupPathsCard";
 import { identityFingerprint } from "../lib/identity";
 import i18n from "../lib/i18n";
 import { resetTour } from "../lib/tour";
@@ -472,6 +473,8 @@ export default function SettingsScreen(props: { onBack: () => void; onChanged: (
           </Field>
           <Btn onClick={testSms}>{smsTest || "Send test SMS"}</Btn>
         </Card>
+
+        <BackupPathsCard s={s} set={set} />
 
         <Card className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Payments</p>

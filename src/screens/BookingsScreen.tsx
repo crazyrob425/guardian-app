@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { TopBar, Card, Btn, Field, inputCls } from "../components/ui";
-import { db, type BookingRow } from "../lib/db";
+import { db, type BookingRow, type ClientRow } from "../lib/db";
 
 /**
  * Booking board (Phase 5): what's coming up, what's done, who no-showed.
@@ -9,23 +9,36 @@ import { db, type BookingRow } from "../lib/db";
  */
 export default function BookingsScreen(props: { onBack: () => void; go: (r: string) => void }) {
   const [rows, setRows] = useState<BookingRow[]>([]);
+  const [clients, setClients] = useState<ClientRow[]>([]);
   const [adding, setAdding] = useState(false);
   const [alias, setAlias] = useState("");
   const [when, setWhen] = useState("");
   const [durationMin, setDurationMin] = useState("60");
   const [location, setLocation] = useState("");
   const [deposit, setDeposit] = useState("");
+  const [clientId, setClientId] = useState("");
 
   const reload = async () => setRows(await db.bookings.orderBy("ts").reverse().toArray());
-  useEffect(() => { void reload(); }, []);
+  useEffect(() => {
+    void reload();
+    void db.clients.orderBy("updatedAt").reverse().toArray().then(setClients).catch(() => {});
+  }, []);
 
   const add = async () => {
     const ts = when ? new Date(when).getTime() : Date.now();
+    const cid = clientId ? parseInt(clientId, 10) : undefined;
+    const linked = cid ? clients.find((c) => c.id === cid) : undefined;
     await db.bookings.add({
-      ts, alias: alias.trim() || "Guest", durationMin: parseInt(durationMin) || 60,
+      ts, alias: alias.trim() || linked?.name || "Guest", durationMin: parseInt(durationMin) || 60,
       location: location.trim(), deposit: parseFloat(deposit) || 0, status: "booked", note: "",
+      clientId: cid,
     });
-    setAdding(false); setAlias(""); setLocation(""); setDeposit("");
+    setAdding(false); setAlias(""); setLocation(""); setDeposit(""); setClientId("");
+    void reload();
+  };
+
+  const setRating = async (b: BookingRow, rating: number) => {
+    if (b.id) await db.bookings.update(b.id, { rating: b.rating === rating ? undefined : rating });
     void reload();
   };
 
@@ -40,7 +53,7 @@ export default function BookingsScreen(props: { onBack: () => void; go: (r: stri
 
   const start = (b: BookingRow) => {
     try {
-      localStorage.setItem("guardian.prefill.v1", JSON.stringify({ alias: b.alias, durationMin: b.durationMin, location: b.location }));
+      localStorage.setItem("guardian.prefill.v1", JSON.stringify({ alias: b.alias, durationMin: b.durationMin, location: b.location, clientId: b.clientId, bookingId: b.id }));
     } catch { /* noop */ }
     props.go("#/date");
   };
@@ -67,6 +80,15 @@ export default function BookingsScreen(props: { onBack: () => void; go: (r: stri
           <Btn variant="danger" onClick={() => void setStatus(b, "cancelled")}>Cancel</Btn>
         </div>
       )}
+      {b.status === "done" && b.clientId && (
+        <div className="mt-3 flex items-center gap-1">
+          <span className="mr-1 text-xs text-zinc-500">Your rating:</span>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} onClick={() => void setRating(b, n)} className={`text-lg leading-none ${(b.rating ?? 0) >= n ? "text-amber-300" : "text-zinc-700"}`} aria-label={`Rate ${n} stars`}>★</button>
+          ))}
+          <span className="ml-2 text-xs text-zinc-600">private — only shared if you allow it in the dossier</span>
+        </div>
+      )}
     </Card>
   );
 
@@ -79,6 +101,14 @@ export default function BookingsScreen(props: { onBack: () => void; go: (r: stri
         ) : (
           <Card className="space-y-3">
             <Field label="Who (alias or name)"><input className={inputCls} value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="e.g. Mike — hotel downtown" /></Field>
+            {clients.length > 0 && (
+              <Field label="Client from your log (optional)" hint="Linking the dossier powers the Command & Control cheat sheet: history, ratings, deposit.">
+                <select className={inputCls} value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                  <option value="">— Not linked —</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name || c.handle || c.phone || "Unnamed"}</option>)}
+                </select>
+              </Field>
+            )}
             <Field label="When"><input className={inputCls} type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></Field>
             <div className="flex gap-2">
               <div className="flex-1"><Field label="Minutes"><input className={inputCls} value={durationMin} onChange={(e) => setDurationMin(e.target.value)} inputMode="numeric" /></Field></div>

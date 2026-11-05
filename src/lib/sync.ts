@@ -12,7 +12,14 @@ export type AlertType =
   | "panic" | "duress" | "missed-checkout" | "checkin" | "checkout" | "arriving" | "arrived"
   // Phase 2 (Trust Pack)
   | "ack" // a watcher acknowledging an alert; note = "seen" | "onmyway" | "called-help", addr/name in `by`
-  | "coded"; // discreet coded quick message; note = code id (pizza/call/pickup/talk)
+  | "coded" // discreet coded quick message; note = code id (pizza/call/pickup/talk)
+  // Phase 8 (Low Signal / C&C): circle remote commands + provider replies.
+  | "status-request" // circle → provider: send the full status bundle (sender in `by`)
+  | "status-reply" // provider → circle: the share-filtered bundle text rides in `data`
+  | "stream-request" // circle → provider: start the live A/V broadcast
+  | "fakecall-request" // circle → provider: fire a fake rescue call shortly
+  | "quick" // provider → circle: a quick request; label in `note`, target member in `by` when 1:1
+  | "dm"; // direct message either direction; text in `note`, sender in `by`
 
 export interface AlertMsg {
   type: AlertType;
@@ -21,6 +28,7 @@ export interface AlertMsg {
   note?: string;
   by?: string; // who sent it (watcher display name, for acks)
   addr?: string; // human-readable street address of `pos`, when known
+  data?: string; // Phase 8: longer payloads (status bundle text) — encrypted like everything else
 }
 
 /** A watcher's heartbeat: someone is actively watching this session. */

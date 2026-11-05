@@ -12,7 +12,7 @@ export interface Persona {
   relation: string;
   blurb: string; // settings one-liner
   avatar: string;
-  voice: { pitch: number; rate: number; hints: string[] };
+  voice: { pitch: number; rate: number; hints: string[]; neural: { voice: string; speed: number } };
   opening: string[];
   replies: Record<Intent, string[]>;
   prompts: string[]; // "are you there?" nudges
@@ -28,7 +28,7 @@ export const PERSONAS: Persona[] = [
     relation: "Mother",
     blurb: "A pipe burst at home — she needs you back right now.",
     avatar: "👩",
-    voice: { pitch: 0.95, rate: 1.0, hints: FEMALE_HINTS },
+    voice: { pitch: 0.95, rate: 1.0, hints: FEMALE_HINTS, neural: { voice: "af_heart", speed: 1.0 } },
     opening: [
       "Honey? Oh thank god you picked up. The bathroom pipe just burst, there is water everywhere, it's getting into the hallway.",
       "I can't shut it off and I don't know what to do. I need you to come home right now, please.",
@@ -50,7 +50,7 @@ export const PERSONAS: Persona[] = [
     relation: "Best friend / roommate",
     blurb: "Your roommate: the dog is sick and she's locked out of the apartment.",
     avatar: "💅",
-    voice: { pitch: 1.15, rate: 1.08, hints: FEMALE_HINTS },
+    voice: { pitch: 1.15, rate: 1.08, hints: FEMALE_HINTS, neural: { voice: "af_jessica", speed: 1.06 } },
     opening: [
       "Girl, finally! Okay don't freak out but Biscuit just threw up everywhere and he's shaking, and I locked myself out of the apartment.",
       "I'm literally standing in the hallway in a towel. I need you home, like, now now.",
@@ -72,7 +72,7 @@ export const PERSONAS: Persona[] = [
     relation: "Sister",
     blurb: "Her car died and she's stranded — she needs you to come get her.",
     avatar: "🚗",
-    voice: { pitch: 1.05, rate: 1.02, hints: FEMALE_HINTS },
+    voice: { pitch: 1.05, rate: 1.02, hints: FEMALE_HINTS, neural: { voice: "af_sarah", speed: 1.02 } },
     opening: [
       "Hey, it's me. My car just completely died, I'm pulled over and it won't even turn over.",
       "My phone's about to die too. Can you please come get me, like right now?",
@@ -94,7 +94,7 @@ export const PERSONAS: Persona[] = [
     relation: "Work manager",
     blurb: "A work emergency — she needs you at the store in twenty minutes.",
     avatar: "💼",
-    voice: { pitch: 0.9, rate: 1.1, hints: FEMALE_HINTS },
+    voice: { pitch: 0.9, rate: 1.1, hints: FEMALE_HINTS, neural: { voice: "af_nicole", speed: 1.05 } },
     opening: [
       "Hi, it's Dana. I'm sorry to call on your night off, we've had two call-outs and the closer just walked out.",
       "I need you here within twenty minutes or we can't open tomorrow. This is urgent.",
@@ -116,7 +116,7 @@ export const PERSONAS: Persona[] = [
     relation: "Neighbor",
     blurb: "Water is leaking through her ceiling — from your unit. She needs you home.",
     avatar: "🏠",
-    voice: { pitch: 1.0, rate: 0.95, hints: FEMALE_HINTS },
+    voice: { pitch: 1.0, rate: 0.95, hints: FEMALE_HINTS, neural: { voice: "bf_isabella", speed: 0.95 } },
     opening: [
       "Hello dear, it's Mrs. Alvarez from downstairs. I'm so sorry to bother you, but water is coming through my ceiling, right above my kitchen.",
       "The building man says it's from your unit. You need to come home right away, dear.",

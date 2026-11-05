@@ -38,6 +38,8 @@ export interface Settings {
   decoyPinHash: string; // Phase 5 decoy mode — opens a harmless fake app
   deadmanEnabled: boolean; // Phase 5 dead-man's switch
   deadmanHours: number; // check-in interval for the dead-man's switch
+  backupPaths: string[]; // Phase 8: enabled fallback message paths (see lib/blast.ts)
+  backupSecondWaveSec: number; // Phase 8: delay before the second blast wave (5–10s)
 }
 
 export interface ActiveSession {
@@ -48,6 +50,8 @@ export interface ActiveSession {
   expectedMin: number;
   incall: { lat: number; lng: number } | null;
   state: "active" | "panic" | "done";
+  clientId?: number; // Phase 8: dossier link when started from a booking
+  bookingId?: number; // Phase 8: booking this session fulfils, when known
 }
 
 const K = {
@@ -85,6 +89,8 @@ export const DEFAULT_SETTINGS: Settings = {
   decoyPinHash: "",
   deadmanEnabled: false,
   deadmanHours: 4,
+  backupPaths: ["sync", "ntfy", "sms"],
+  backupSecondWaveSec: 7,
 };
 
 function read<T>(key: string, fallback: T): T {

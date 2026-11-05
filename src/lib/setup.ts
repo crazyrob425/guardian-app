@@ -27,4 +27,4 @@ export function setupDone(): boolean {
   return getSetup().done;
 }
 
-export const SETUP_STEP_COUNT = 8;
+export const SETUP_STEP_COUNT = 9;

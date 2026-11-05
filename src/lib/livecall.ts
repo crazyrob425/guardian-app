@@ -1,13 +1,18 @@
-// Live AI fake call engine (v0.10) — 100% free, 100% on-device.
-// The "AI caller" is the phone's own speech stack:
-//   - speechSynthesis speaks the persona's lines (voice picked per persona),
+// Live AI fake call engine (v0.10) — the "AI caller" talks with a real
+// neural voice from Guardian's own TTS service (see tts.ts): stock
+// device speechSynthesis voices are robotic, and a fake call that gets
+// overheard on speaker lives or dies on the voice sounding human.
+//   - neural service audio speaks the persona's lines (prefetched while
+//     the phone rings, cached per line),
 //   - SpeechRecognition (where the browser offers it) listens to the user,
 //   - the persona's branching script routes replies by intent.
-// No server, no API key, no per-minute cost. Where recognition is missing
-// or the mic is denied, the engine degrades to tap-to-reply chips — the
+// The device speech stack remains ONLY as an offline fallback when the
+// voice service is unreachable. Where recognition is missing or the mic
+// is denied, the engine degrades to tap-to-reply chips — the
 // conversation still advances and still sounds like a real call.
 
 import { classifyIntent, type Persona } from "./personas";
+import { lineAudio, resetTTSHealth, warmPersonaVoice } from "./tts";
 
 interface SR {
   lang: string;
@@ -62,6 +67,7 @@ export class LiveCall {
   private mode: "voice" | "chips" = "chips";
   private heardDistress = false;
   private scripted = false;
+  private audioEl: HTMLAudioElement | null = null;
 
   constructor(persona: Persona, emit: (e: LiveCallEvent) => void) {
     this.persona = persona;
@@ -72,7 +78,10 @@ export class LiveCall {
     this.scripted = scripted;
     this.mode = recognitionSupported() && !scripted ? "voice" : "chips";
     this.emit({ type: "mode", mode: this.mode });
-    // Voices may load async; warm the list.
+    // Warm the neural voice (opening lines render first) and, for the
+    // fallback path, the device voice list (may load async).
+    resetTTSHealth();
+    warmPersonaVoice(this.persona);
     try { window.speechSynthesis.getVoices(); } catch { /* noop */ }
     this.speakLines(this.persona.opening, () => this.listen());
   }
@@ -81,6 +90,8 @@ export class LiveCall {
     this.stopped = true;
     this.clearPrompt();
     try { this.rec?.stop(); } catch { /* noop */ }
+    try { this.audioEl?.pause(); } catch { /* noop */ }
+    this.audioEl = null;
     try { window.speechSynthesis.cancel(); } catch { /* noop */ }
   }
 
@@ -146,22 +157,58 @@ export class LiveCall {
     const [head, ...rest] = lines;
     if (!head) { then?.(); return; }
     this.emit({ type: "line", text: head });
+    void this.playNeural(head).then((played) => {
+      if (this.stopped) return;
+      if (played) { this.speakLines(rest, then); return; }
+      this.speakLineDevice(head, () => this.speakLines(rest, then));
+    });
+  }
+
+  /** Play one line in the persona's neural voice. Resolves false when
+   *  the voice service can't deliver — caller falls back to the device
+   *  speech stack for that line. */
+  private playNeural(text: string): Promise<boolean> {
+    return lineAudio(this.persona, text).then((blob) => {
+      if (!blob || this.stopped) return false;
+      return new Promise<boolean>((resolve) => {
+        let settled = false;
+        const done = (ok: boolean) => {
+          if (settled) return;
+          settled = true;
+          URL.revokeObjectURL(url);
+          if (this.audioEl === el) this.audioEl = null;
+          resolve(ok && !this.stopped);
+        };
+        const url = URL.createObjectURL(blob);
+        const el = new Audio(url);
+        this.audioEl = el;
+        el.onended = () => done(true);
+        el.onerror = () => done(false);
+        el.play().catch(() => done(false));
+      });
+    });
+  }
+
+  /** Offline fallback only: the phone's built-in (robotic) voice stack.
+   *  Used when the neural voice service is unreachable. */
+  private speakLineDevice(text: string, then?: () => void) {
+    if (this.stopped) return;
     if (!speechSupported()) {
-      // No TTS at all: pace the lines like speech so she can still act.
-      window.setTimeout(() => this.speakLines(rest, then), 2600);
+      // No TTS at all: pace the line like speech so she can still act.
+      window.setTimeout(() => then?.(), 2600);
       return;
     }
     try {
-      const u = new SpeechSynthesisUtterance(head);
+      const u = new SpeechSynthesisUtterance(text);
       const v = pickVoice(this.persona);
       if (v) u.voice = v;
       u.pitch = this.persona.voice.pitch;
       u.rate = this.persona.voice.rate;
-      u.onend = () => this.speakLines(rest, then);
-      u.onerror = () => this.speakLines(rest, then);
+      u.onend = () => then?.();
+      u.onerror = () => then?.();
       window.speechSynthesis.speak(u);
     } catch {
-      window.setTimeout(() => this.speakLines(rest, then), 2600);
+      window.setTimeout(() => then?.(), 2600);
     }
   }
 
