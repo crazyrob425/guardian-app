@@ -2066,6 +2066,301 @@ base accuracy is the bottleneck.
     legal review per jurisdiction — it is not a pack, not a setting,
     and not a Phase 7 item.
 
+## 12. Phase 8 — Low Signal Mode, Command & Control, and the circle mesh
+
+*Written 2026-11-05, alongside app v0.12.0 ("Phase 8a"). Rob's field
+feedback — sent after real dates — is the requirements source: the app
+must detect when the signal dies, say so, and behave like the date is
+still happening anyway; the user needs one screen that answers every
+"what's going on right now" question without digging; and when her
+circle asks, the app answers with exactly the facts she chose to share
+and nothing else. §12.0–§12.6 spec what v0.12.0 SHIPPED app-side (all
+self-contained, no new servers). §12.7–§12.10 spec the Phase 8 backend
+that turns these local mechanisms into a real circle mesh. The hard
+rules that govern the whole section, stated once: **zero-knowledge
+stands** (dossier data lives on the device; circle-share toggles
+default OFF; status bundles are generated on-device and carried by the
+session's end-to-end-encrypted channel); **connectivity detection is
+advisory only** — no safety path waits on it, and Low Signal Mode never
+delays, gates, or alters a panic/SOS in any way; it only adds
+redundancy; and **PIN semantics are unchanged** — the ticker gate
+mirrors the lock screen exactly (real PIN/passkey opens real data;
+duress alerts silently and shows a bland page; decoy shows a bland
+page; neither fake PIN ever reveals Command & Control).*
+
+### 12.0 What shipped in v0.12.0 (app-side, verified)
+
+- **Escalation became a condition set** (`lib/escalation.ts`): named
+  conditions with levels, reasons, and start times — `lowsignal`,
+  `manual`, `panic`, `missed`, `rescue`, `concern`. The active level is
+  the max; the "why" is always answerable from the condition list.
+  Level naming: 1 Normal · 2 Heightened — and specifically **Low
+  Signal Mode** when a lowsignal condition is the driver · 3 Emergency.
+- **Connectivity detection** (`lib/connectivity.ts`): five signals —
+  `navigator.onLine` + online/offline events, live sync-connection
+  state, consecutive send outcomes reported by the dispatch layer,
+  encrypted-outbox depth, and the Network Information API
+  (`effectiveType` 2g/slow-2g). Engaging Low Signal Mode requires either
+  a hard signal (offline, or sync down with a non-empty outbox) or two
+  stacked soft signals; clearing needs 45 s of all-clean so the mode
+  never flaps mid-date.
+- **Multi-path blast with delivery learning** (`lib/blast.ts`,
+  `lib/dispatch.ts`): on connectivity trouble (or for any critical
+  message), every configured automated path fires at once — both to get
+  the message out and to probe which networks exist. Each path's
+  confirmations/failures are recorded per session; subsequent sends
+  lead with confirmed paths, then everything else — **including the
+  built-in self-hosted ntfy push** — fires as a second wave 5–10 s
+  later (user-configurable 5/7/10). Panic and missed-checkout now route
+  through this dispatcher; the sync publish, SMS relay text, and push
+  text are byte-identical to what they replaced.
+- **Event log + news ticker** (`lib/events.ts`,
+  `components/NewsTicker.tsx`): every status change, check-in, circle
+  communication, remote command, and app-executed command lands in a
+  Dexie `events` table (DB v5) and rotates through a bottom ticker on
+  every owner screen. The ticker is a security boundary, not decoration:
+  tapping it runs `components/PinGate.tsx`, which reproduces the lock
+  screen's decision order bit-for-bit. The duress and decoy fakes are
+  content-free status pages — by design they contain zero real data,
+  not even a session's existence.
+- **Command & Control** (`screens/CommandScreen.tsx`): the cheat sheet
+  reads ONLY existing local stores — active session (+ linked booking
+  via `clientId`/`bookingId` carried from the booking board, else a
+  time-window match), clients/dossier, per-date ratings (new: bookings
+  carry a 1–5 rating, set on the board or in the dossier), check-ins
+  (from the event log), battery (existing tracking state), network
+  (Network Information API), escalation conditions, circle log (§12.7).
+  GPS match = live position vs the session's incall/outcall point within
+  the existing arrival radius; it reports a match, a distance, or
+  "unknown" — never a fabricated position.
+- **Status ping + share toggles** (`lib/statusping.ts`): dossier rows
+  gain `shareNotes` / `shareRatings` / `shareHistory`, default OFF,
+  edited in the client record with plain-language copy. The bundle
+  builder is a pure function that (a) includes dossier fields only when
+  toggled on, (b) returns the list of what it withheld, and (c) excludes
+  deposit/payment detail by construction — C&C previews the exact text
+  and the withheld list before the user ever relies on it. Watchers
+  gained remote-command buttons (full status, live stream, fake call)
+  on the watch page; the owner app answers a status request
+  automatically with the filtered bundle over the encrypted session
+  channel, executes a fake-call request via the existing scheduler, and
+  treats a stream request as consent to start the existing broadcast.
+- **Quick requests** (`lib/quickrequests.ts`): Rob's 23-item menu —
+  status signals, the verbatim siren/armed-guard warning request,
+  extensions (+15/30/60/120 actually extend the session clock),
+  rescue, door knocks (now / +5 / +10 / +15 / +20 / +30 / at scheduled
+  end), all-clear, and cancel-last-request. Timed requests persist as
+  scheduled follow-ups (`guardian.followups.*`) fired by an App-level
+  host loop, so they survive leaving the session screen; they are
+  circle ALERTS — Guardian never dispatches anyone and never claims to.
+- **Backup-paths setup**: the Sis wizard grows a 9th step ("Backup
+  plans 📡") and Settings gains the same card
+  (`components/BackupPathsCard.tsx`). Only real paths are listed:
+  encrypted live session (always on), built-in Guardian push over
+  self-hosted ntfy, SMS relay (automated), and share sheet / SMS
+  composer / email as honestly-labeled manual paths. Unconfigured paths
+  say so and link to their setup — the catalog never advertises a path
+  that cannot fire.
+
+### 12.1 Low Signal Mode semantics (the contract)
+
+1. Detection inputs are exactly the five signals above; no heuristic
+   may engage the mode on a single soft signal (one failed send is a
+   hiccup, not a dead zone) — false "LOW SIGNAL" banners train users to
+   ignore the real one.
+2. Engaging is a *label + posture* change only: escalation Level 2,
+   reason recorded, ticker announces it, dispatch posture switches to
+   probe-blast (§12.2). Nothing else in the app may key behavior off
+   the flag except presentation (ticker badge, C&C) and dispatch.
+3. Clearing requires sustained clean signals (45 s hysteresis) OR the
+   session ending. A panic does not "clear" Low Signal; the conditions
+   coexist, and the level is always the max of the set.
+4. **Never a gate.** If connectivity detection itself fails (API
+   absent, monitor crashed), the app behaves as v0.11 did: sends
+   attempt immediately on every path the send already used. Detection
+   can only add paths and ordering intelligence; it cannot remove or
+   delay any.
+
+### 12.2 Blast + learning rules
+
+1. **Probe rule:** a send is a probe when (a) Low Signal Mode is
+   active, or (b) the message is critical (panic, missed checkout,
+   rescue, violent-client). Probes fire all configured automated paths
+   concurrently. Non-probe sends use the ranked order (§12.2.2).
+2. **Ranking:** per session, a path is *confirmed* when its latest
+   outcome is a success; ordering is confirmed (freshest first) →
+   never-tried → failed (least-recent failure first). Ties break
+   toward the zero-knowledge session channel, then ntfy — the two
+   paths Guardian itself operates.
+3. **Second wave:** critical sends re-fire the not-yet-confirmed
+   automated paths after the configured delay (5–10 s), and the
+   built-in ntfy path is ALWAYS in that wave even if it led wave one —
+   push is the path most likely to traverse a network the data paths
+   can't.
+4. **Honesty of "confirmed":** for the sync path, confirmation means
+   the connection was live at send (queued-in-outbox does NOT count —
+   the v0.11.2 lesson, applied here too); for SMS, the relay (or the
+   user's own Messages send) reporting a real send; for ntfy, HTTP
+   acceptance by our server. Delivery confirmation is transport-level
+   only — it never implies a human read anything, and no copy may say
+   otherwise.
+5. **Flavor availability:** Play/generic flavor — SME-class paths
+   only, per §2's messaging constraints; the direct flavor adds the
+   full catalog. The path catalog is data, so flavors filter it
+   without code changes.
+
+### 12.3 Ticker + gate invariants
+
+1. The ticker shows the event log, never raw store contents: event
+   text is written at the moment things happen, so the ticker cannot
+   leak a dossier field by accident.
+2. Duress through the ticker behaves EXACTLY as duress through the
+   lock screen: silent emergency alert to the circle, then a bland
+   page. An attacker who knows the app must learn nothing from the
+   fake — including that an alert was sent.
+3. The gate is skipped only when the user has set no PIN at all
+   (consistent with the rest of the app); passkey unlock counts as the
+   real identity, same as the lock screen.
+
+### 12.4 C&C data contract
+
+Every C&C field names its source store and its "unknown" behavior
+(position unavailable → say so; no booking link → time-window match or
+"no booking linked"; battery API absent → "not reported by this
+device"). The screen is a *reader*: it executes nothing except the
+circle actions in §12.6 and the manual status send. In particular it
+never writes dossier data, never changes settings, and never cancels a
+panic — stand-down remains on the session screen behind the existing
+panic PIN gate.
+
+### 12.5 Status ping protocol
+
+1. Transport today: the session's E2EE sync channel (`status-request` /
+   `status-reply` alert types; the bundle rides the encrypted `data`
+   field). Phase 8 transport: §12.7.
+2. Bundle contents are the session facts (busy status, start, scheduled
+   end, next booking today, last check-in, location + match,
+   escalation) ALWAYS, plus dossier fields (notes, ratings, history)
+   ONLY under their per-client toggles. Circle-executed commands this
+   session are summarized from the event log.
+3. The owner app auto-replies to a status request from a circle member
+   who is ON the live session — there is no per-request approval tap,
+   because mid-date she cannot tap anything; the approval is the
+   toggles, set in advance, in the dossier. Changing a toggle mid-date
+   changes the next reply.
+4. Requests from identities not on the session are dropped and logged;
+   the bundle is never broadcast to non-members.
+
+### 12.6 Quick requests + follow-ups
+
+1. Requests are data (catalog), so packs (§7) can re-label them
+   without touching dispatch. Severity drives posture: `critical`
+   requests blast with probe rules; `watch` requests raise a Level 2
+   concern condition until stood down or the date ends.
+2. Extensions mutate the session clock and publish the new state —
+   the circle's view of "late" must move with them, or every extension
+   manufactures a false missed-checkout.
+3. Follow-ups (siren/knock timing) are scheduled alerts to the circle,
+   persisted locally, fired by the App-level host; if the app was
+   closed when one came due, it fires late-and-labeled on next open
+   rather than never.
+4. **Cancel last request** cancels pending follow-ups of the most
+   recent timed request AND notifies the circle — a cancellation that
+   only deletes local state would leave the circle acting on a request
+   she already withdrew.
+
+### 12.7 Circle presence + remote commands — today vs Phase 8
+
+**Today (v0.12.0):** presence is what the sync layer already proves —
+watch-page heartbeats give joined/last-active; a member is "watching
+now" only within a 45 s heartbeat window; acks are the only "responses"
+that exist, so the circle log shows acks and remote commands and
+claims nothing about message reading (sync has no read receipts and
+v0.12.0 does not invent any). Remote commands ride the encrypted
+session channel: status-request (auto-answered, §12.5),
+stream-request, fakecall-request, ack, DM.
+
+**Phase 8 backend (the spec):**
+1. **Chat:** Matrix homeserver **Tuwunel** on guardian-core (per the
+   adoption study: maintained Conduit-family fork, fits the A1.Flex),
+   clients **Cinny**-based (AGPL kept at arm's length: hosted client,
+   no code import into the app). Per-circle 1:1 rooms + one full-circle
+   room per user; disposable display identities for the direct flavor,
+   per §10/§11 naming rules. Voice: MatrixRTC when it proves out on
+   Tuwunel; the in-app voice-call buttons stay honest stubs until then
+   (LiveKit self-host is a Watch item — too heavy for the current box
+   pair; revisit with Phase 9 streaming).
+2. **Transport duality:** remote commands and presence travel BOTH the
+   Matrix room AND our ntfy topics (`guardian-*`, per-user ACLs as
+   shipped in the ntfy build-out) — Matrix for richness, ntfy for the
+   content-free wake-up ping that survives Matrix being down, and the
+   session sync channel remains the third, session-scoped path.
+   Commands are idempotent, carry a nonce + issue time, and expire
+   (5 min) — a replayed or stale command is a log entry, not an action.
+3. **Presence honesty carries forward:** Matrix presence is advisory in
+   every client; the circle log keeps the same rule — heartbeats and
+   explicit actions are facts, "reading" is never inferred.
+
+### 12.8 Remote command execution rules (deterministic, no AI)
+
+1. The executable set is a whitelist, executed by a deterministic
+   state machine on the owner's device: send status bundle, start
+   stream, schedule fake call, surface DM. Nothing else is remotely
+   executable — in particular NOT: stand down a panic, cancel an
+   alarm, change settings/PINs/sharing, delete anything, or disclose
+   any field outside §12.5's bundle.
+2. **Remote can fire, never cancel** (the Bluetooth rule, §3.7,
+   generalized): a circle member can raise the alarm level from afar;
+   only the owner — on device, real PIN, existing panic gate — can
+   lower it.
+3. Under duress/decoy unlock states, inbound commands execute only
+   their silent subset (status replies carry the toggles' fields but
+   the device shows nothing); the bland fake pages never change.
+4. Every remote command and its execution result land in the session
+   event log (ticker + C&C) — the audit trail is the feature: after a
+   bad date she can see exactly who asked for what, when, and what the
+   app did.
+5. AI never enters this path. No model decides whether a command is
+   "really" urgent, summarises a bundle, or speaks for the owner; the
+   Fake Call's conversational AI (§3) is a separate, user-initiated
+   surface and changes nothing here.
+
+### 12.9 Build order + dependencies
+
+1. **Adoption-study Adopt-Now floor first** (backups/monitoring) —
+   Phase 8 adds stateful services to boxes that currently have no
+   backups; Tuwunel's room state joins ntfy auth DB + TTS as
+   must-restore data.
+2. Tuwunel + Cinny on guardian-core; account model reuses the Supabase
+   identity (Matrix IDs minted per circle membership, never per real
+   name). Blocked until ntfy's public path is live (the Cloudflare DNS
+   grey-cloud flip) — Matrix federation is NOT required (closed
+   circles), so a single-host deployment behind the same proxy pattern
+   as voice.blacklisted.studio works.
+3. Presence/command duality (§12.7.2), then WITNESS (stream +
+   heartbeat + chat) and GHOST EAR (trusted contact puppeteering the
+   Fake Call from the E2EE room) from the adoption-study combos — both
+   assume §12.8's rules verbatim.
+4. Native pass: the same screens and rules port to the native build
+   (§3) with Background Service transport replacing sync heartbeats;
+   nothing in §12 is PWA-specific except the Network Information API
+   fallback (native reads TelephonyManager directly).
+
+### 12.10 Honest limits
+
+- "Confirmed delivery" is transport acceptance, not human attention;
+  the circle log's job is to make the gap visible, not close it.
+- Battery/network telemetry is best-effort per platform (iOS PWA
+  reports neither reliably); C&C says "not reported" rather than
+  guessing — a safety screen that guesses is worse than one that
+  admits.
+- Presence windows (45 s) trade freshness for battery; a member whose
+  phone died shows "last active" honestly, which is itself signal.
+- Low Signal Mode cannot create signal. Its value is ordering,
+  redundancy, and telling the truth about the situation on the ticker
+  and in C&C while the outbox + second wave keep trying — the moment
+  any path breathes, the queue drains through it first.
+
 ---
 
 *Sources: `.phase7-research/play-policy.md` (Google Play Policy Center
